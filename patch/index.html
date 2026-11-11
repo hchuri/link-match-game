@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PatchPlanner – AV &amp; Network Patching</title>
+<style>
+:root{
+  --bg:#0b1120; --panel:#111a2e; --panel2:#17223a; --line:#26324d; --text:#e2e8f0; --muted:#8b9ab5;
+  --accent:#38bdf8; --accent2:#0ea5e9; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --row:22px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:#0b1426;border:1px solid var(--line);border-radius:6px;padding:5px 8px;outline:none;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{width:100%;min-height:60px;resize:vertical}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff;font-weight:600}
+button.danger{color:#fca5a5}
+button.danger:hover{border-color:var(--err)}
+button.sm{padding:2px 7px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--accent)}
+header{display:flex;align-items:center;gap:14px;padding:8px 16px;background:#0a0f1c;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+header .logo{font-weight:800;font-size:16px;letter-spacing:.3px}
+header .logo span{color:var(--accent)}
+header .proj{color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+nav{display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;padding:7px 10px;color:var(--muted)}
+nav button.active{color:var(--text);border-bottom-color:var(--accent)}
+nav .badge{background:var(--err);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px}
+.spacer{flex:1}
+main{padding:16px;max-width:1700px;margin:0 auto}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--muted);font-size:12px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 12px}
+.form label{display:flex;flex-direction:column;gap:3px;color:var(--muted);font-size:12px}
+.form label.full{grid-column:1/-1}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--panel);cursor:default;user-select:none}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--text)}
+tr:hover td{background:#14203a}
+td input,td select{width:100%;padding:3px 6px}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;border:1px solid var(--line);background:#0b1426;white-space:nowrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.err{color:#fca5a5}.warn{color:#fcd34d}.ok{color:#86efac}
+.issue{padding:6px 8px;border-left:3px solid var(--warn);background:#1a1f2e;margin-bottom:6px;border-radius:4px}
+.issue.error{border-left-color:var(--err)}
+.issue.info{border-left-color:var(--accent)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.tablewrap{max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.chk{display:inline-flex;gap:5px;align-items:center;color:var(--muted)}
+/* Racks */
+.racks{display:flex;gap:22px;align-items:flex-start;overflow-x:auto;padding-bottom:10px}
+.rack{flex:none;width:330px}
+.rack-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.rack-frame{background:#1f2937;border:6px solid #374151;border-radius:6px;padding:0 0 0 26px;position:relative}
+.rack-body{position:relative;background:#0a0f1a}
+.u-slot{position:absolute;left:0;right:0;height:var(--row);border-bottom:1px dashed #1e293b}
+.u-slot.over{background:rgba(56,189,248,.25)}
+.u-num{position:absolute;left:-24px;width:20px;text-align:right;font-size:10px;color:#6b7280;line-height:var(--row)}
+.rack-dev{position:absolute;left:2px;right:2px;border-radius:3px;padding:2px 6px;overflow:hidden;cursor:grab;border:1px solid rgba(255,255,255,.25);font-size:11px;line-height:1.25;display:flex;flex-direction:column;justify-content:center}
+.rack-dev b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rack-dev small{opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rack-dev .x{position:absolute;right:3px;top:2px;opacity:0;cursor:pointer;background:rgba(0,0,0,.4);border-radius:3px;padding:0 4px}
+.rack-dev:hover .x{opacity:1}
+body.dragging .rack-dev{pointer-events:none}
+.tray{width:240px;flex:none;background:var(--panel);border:1px dashed var(--line);border-radius:8px;padding:8px;min-height:200px}
+.tray.over{border-color:var(--accent)}
+.tray-item{padding:5px 8px;margin-bottom:5px;border-radius:5px;cursor:grab;font-size:12px;border:1px solid rgba(255,255,255,.2)}
+/* Patch */
+.patch{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;min-height:420px}
+.pane-head{display:flex;gap:8px;margin-bottom:8px}
+.pane-head select{flex:1}
+.ports{overflow:auto;max-height:56vh}
+.port{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid transparent;border-radius:6px;cursor:pointer}
+.port:hover{background:#14203a}
+.port.sel{border-color:var(--accent);background:#0c2a40}
+.port.used .pname{color:var(--muted)}
+.port.dim{opacity:.35}
+.port.compat{background:rgba(34,197,94,.07)}
+.pname{min-width:110px;font-weight:600}
+.pdir{width:18px;text-align:center;color:var(--muted)}
+.plink{color:var(--muted);font-size:12px;flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.connectbar{position:sticky;bottom:0;background:#0d1628;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.connectbar .sum{flex:1;min-width:260px}
+/* Flow */
+.flowwrap{background:#070c17;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:78vh}
+.flowwrap svg text{font-family:system-ui,sans-serif}
+/* Labels */
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.label{background:#fff;color:#111;border-radius:4px;padding:8px 10px 8px 14px;position:relative;font-size:11px;border:1px solid #ccc;break-inside:avoid}
+.label .bar{position:absolute;left:0;top:0;bottom:0;width:7px;border-radius:4px 0 0 4px}
+.label .cid{font:700 18px ui-monospace,Menlo,Consolas,monospace}
+.label .end{float:right;font-weight:700;border:1px solid #111;border-radius:3px;padding:0 5px}
+/* Report */
+.report{background:#fff;color:#111;border-radius:8px;padding:28px 34px;max-width:1100px;margin:0 auto}
+.report h1{margin:0 0 4px;font-size:24px}
+.report h2{font-size:16px;border-bottom:2px solid #111;padding-bottom:3px;margin-top:26px}
+.report h3{font-size:13px;margin:16px 0 6px}
+.report table{font-size:11px}
+.report th{background:#f1f5f9;color:#111;position:static}
+.report th,.report td{border:1px solid #cbd5e1;padding:3px 6px}
+.report tr:hover td{background:none}
+.report .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 16px;font-size:12px;margin:10px 0}
+.report .meta div span{color:#64748b;display:block;font-size:10px;text-transform:uppercase}
+.report .mini-rack{display:inline-block;vertical-align:top;margin:0 14px 14px 0;width:230px}
+.report .mini-rack table td{height:15px;padding:0 4px;font-size:10px}
+/* Modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow:auto;padding:40px 10px}
+#modal.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(980px,100%);padding:18px}
+.modal h2{margin:0 0 12px;font-size:17px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid var(--line);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .2s;z-index:60;pointer-events:none}
+#toast.show{opacity:1}
+@media print{
+  body{background:#fff;color:#000}
+  header,.no-print,nav,#toast{display:none!important}
+  main{padding:0;max-width:none}
+  .report{padding:0;border-radius:0}
+  .report h2{break-after:avoid}
+  .report .pb{break-before:page}
+  .labels{grid-template-columns:repeat(3,1fr);gap:6px}
+  .label{border:1px dashed #999}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Patch<span>Planner</span></div>
+  <div class="proj" id="projName"></div>
+  <nav id="nav"></nav>
+  <div class="spacer"></div>
+  <button class="sm" onclick="App.undo()" title="Undo (Ctrl+Z)">↶ Undo</button>
+  <button class="sm" onclick="App.exportJSON()">💾 Save file</button>
+  <button class="sm" onclick="document.getElementById('fileIn').click()">📂 Open file</button>
+  <input type="file" id="fileIn" accept=".json,application/json" style="display:none" onchange="App.importJSON(this)">
+</header>
+<main id="main"></main>
+<div id="modal"><div class="modal" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   PatchPlanner — AV & network patching / rack / rider tool
+   Single file, no dependencies, data stored in browser localStorage.
+   ========================================================================= */
+const STORE_KEY = 'patchplanner.v1';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clone = o => JSON.parse(JSON.stringify(o));
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+const jsq = s => esc(JSON.stringify(String(s)));   // safe string literal inside onclick="..."
+
+/* ---------------- Reference data ---------------- */
+const CONNECTORS = {
+  RJ45:      {group:'eth',     label:'RJ45 / Ethernet',       cable:'Cat6 U/FTP',     prefix:'NET', color:'#3b82f6'},
+  etherCON:  {group:'eth',     label:'etherCON',              cable:'Cat6 etherCON',  prefix:'NET', color:'#3b82f6'},
+  SFP:       {group:'fiber',   label:'SFP/SFP+ cage',         cable:'LC-LC OM3 Duplex',prefix:'FIB', color:'#f59e0b'},
+  LC:        {group:'fiber',   label:'LC fibre',              cable:'LC-LC OM3 Duplex',prefix:'FIB', color:'#f59e0b'},
+  opticalCON:{group:'tfiber',  label:'opticalCON',            cable:'opticalCON Duo', prefix:'FIB', color:'#f59e0b'},
+  XLR:       {group:'xlr',     label:'XLR 3-pin',             cable:'XLR Mic Cable',  prefix:'AUD', color:'#10b981'},
+  TRS:       {group:'trs',     label:'1/4" TRS',              cable:'TRS Balanced',   prefix:'AUD', color:'#10b981'},
+  Phoenix:   {group:'phoenix', label:'Phoenix / Euroblock',   cable:'2-core Shielded',prefix:'AUD', color:'#10b981'},
+  speakON:   {group:'speakon', label:'speakON NL4',           cable:'NL4 2.5mm²',     prefix:'SPK', color:'#84cc16'},
+  BNC:       {group:'bnc',     label:'BNC (SDI/MADI/WC)',     cable:'12G-SDI Coax',   prefix:'VID', color:'#a855f7'},
+  HDMI:      {group:'hdmi',    label:'HDMI',                  cable:'HDMI 2.0',       prefix:'VID', color:'#ec4899'},
+  DP:        {group:'dp',      label:'DisplayPort',           cable:'DisplayPort',    prefix:'VID', color:'#ec4899'},
+  USB:       {group:'usb',     label:'USB',                   cable:'USB',            prefix:'USB', color:'#64748b'},
+  DB9:       {group:'serial',  label:'RS-232 DB9',            cable:'RS-232 Serial',  prefix:'CTL', color:'#94a3b8'},
+  IEC:       {group:'power',   label:'IEC C13/C14',           cable:'IEC C13-C14',    prefix:'PWR', color:'#ef4444'},
+  powerCON:  {group:'powercon',label:'powerCON',              cable:'powerCON TRUE1', prefix:'PWR', color:'#ef4444'},
+};
+const PROTOCOLS = ['', 'Dante Pri', 'Dante Sec', 'AES67', 'AVB/Milan', 'NDI', 'ST 2110', 'IPMX', 'HDBaseT', 'SDVoE', 'Control', 'Management', 'Uplink', 'PoE', 'Analog', 'AES3', 'MADI', 'SDI', 'Word Clock', 'Power'];
+const DIRS = {in:'⇥ In', out:'Out ⇥', io:'⇄ Bi'};
+const DIR_ICON = {in:'→', out:'←', io:'⇄'};
+const CATEGORIES = {
+  source:      {label:'Sources (mics, cams, players)',   col:0, color:'#0e7490'},
+  interface:   {label:'I/O, Stagebox & Conversion',      col:1, color:'#0f766e'},
+  network:     {label:'Network & Patch Panels',          col:2, color:'#1d4ed8'},
+  processing:  {label:'Processing / Mixing / Switching', col:3, color:'#6d28d9'},
+  control:     {label:'Control & Computers',             col:3, color:'#7c2d12'},
+  distribution:{label:'Amplification / Decoders',        col:4, color:'#9d174d'},
+  destination: {label:'Destinations (speakers, displays)',col:5, color:'#b45309'},
+  power:       {label:'Power',                           col:6, color:'#7f1d1d'},
+  other:       {label:'Other / Passive',                 col:2, color:'#374151'},
+};
+const CABLE_COLORS = ['', 'Black', 'Grey', 'White', 'Blue', 'Red', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Brown', 'Aqua'];
+
+/* Port generator for templates */
+function P(base, n, conn, dir, proto = '', start = 1) {
+  if (n === 0) return [];
+  if (n === 1 && start === null) return [{name: base, conn, dir, proto}];
+  return Array.from({length: n}, (_, i) => ({name: `${base}${n > 1 || start !== 1 ? ' ' + (start + i) : ''}`.trim(), conn, dir, proto}));
+}
+const one = (name, conn, dir, proto = '') => ({name, conn, dir, proto});
+
+const BUILTIN_TEMPLATES = [
+  // Network
+  {id:'t-sw24', short:'SW', model:'24-port PoE+ Managed Switch', mfr:'Generic', category:'network', uHeight:1, powerW:450,
+    ports:[...P('Port', 24, 'RJ45', 'io'), ...P('SFP', 4, 'SFP', 'io', '', 25), one('Mgmt', 'RJ45', 'io', 'Management'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-sw12', short:'SW', model:'10-port AV Switch (8+2 SFP)', mfr:'Generic', category:'network', uHeight:1, powerW:150,
+    ports:[...P('Port', 8, 'RJ45', 'io'), ...P('SFP', 2, 'SFP', 'io', '', 9), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-pp24', short:'PP', model:'24-port Cat6 Patch Panel', mfr:'Generic', category:'other', uHeight:1, powerW:0,
+    ports:[...P('F', 24, 'RJ45', 'io'), ...P('R', 24, 'RJ45', 'io')]},
+  {id:'t-fpp12', short:'FPP', model:'12-port LC Fibre Patch Panel', mfr:'Generic', category:'other', uHeight:1, powerW:0,
+    ports:[...P('F', 12, 'LC', 'io'), ...P('R', 12, 'LC', 'io')]},
+  {id:'t-mc', short:'MC', model:'Fibre Media Converter', mfr:'Generic', category:'network', uHeight:0, powerW:10,
+    ports:[one('Copper', 'RJ45', 'io'), one('Fibre', 'SFP', 'io')]},
+  // Audio
+  {id:'t-sb168', short:'SB', model:'Dante Stagebox 16x8', mfr:'Generic', category:'interface', uHeight:2, powerW:60,
+    ports:[...P('In', 16, 'XLR', 'in', 'Analog'), ...P('Out', 8, 'XLR', 'out', 'Analog'), one('Dante Pri', 'RJ45', 'io', 'Dante Pri'), one('Dante Sec', 'RJ45', 'io', 'Dante Sec'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-mix', short:'DESK', model:'Digital Mixing Console', mfr:'Generic', category:'processing', uHeight:0, powerW:250,
+    ports:[...P('Local In', 8, 'XLR', 'in', 'Analog'), ...P('Local Out', 8, 'XLR', 'out', 'Analog'), one('Dante Pri', 'RJ45', 'io', 'Dante Pri'), one('Dante Sec', 'RJ45', 'io', 'Dante Sec'), one('Control', 'RJ45', 'io', 'Control'), one('USB', 'USB', 'io'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-dsp', short:'DSP', model:'Networked Audio DSP', mfr:'Generic', category:'processing', uHeight:1, powerW:80,
+    ports:[...P('In', 8, 'Phoenix', 'in', 'Analog'), ...P('Out', 8, 'Phoenix', 'out', 'Analog'), one('Dante Pri', 'RJ45', 'io', 'Dante Pri'), one('Dante Sec', 'RJ45', 'io', 'Dante Sec'), one('Control', 'RJ45', 'io', 'Control'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-amp4', short:'AMP', model:'4-ch Dante Amplifier', mfr:'Generic', category:'distribution', uHeight:2, powerW:1200,
+    ports:[...P('Analog In', 4, 'XLR', 'in', 'Analog'), one('Dante Pri', 'RJ45', 'io', 'Dante Pri'), one('Dante Sec', 'RJ45', 'io', 'Dante Sec'), ...P('Out', 4, 'speakON', 'out'), one('Power', 'powerCON', 'in', 'Power')]},
+  {id:'t-spk', short:'SPK', model:'Passive Loudspeaker', mfr:'Generic', category:'destination', uHeight:0, powerW:0,
+    ports:[one('Input', 'speakON', 'in'), one('Link', 'speakON', 'out')]},
+  {id:'t-aspk', short:'SPK', model:'Active Dante Loudspeaker', mfr:'Generic', category:'destination', uHeight:0, powerW:400,
+    ports:[one('Dante', 'RJ45', 'io', 'Dante Pri'), one('Analog In', 'XLR', 'in', 'Analog'), one('Power', 'powerCON', 'in', 'Power')]},
+  {id:'t-rx2', short:'RX', model:'2-ch Wireless Mic Receiver', mfr:'Generic', category:'source', uHeight:1, powerW:30,
+    ports:[...P('Out', 2, 'XLR', 'out', 'Analog'), one('Dante', 'RJ45', 'io', 'Dante Pri'), one('Control', 'RJ45', 'io', 'Control'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-mic', short:'MIC', model:'Wired Microphone', mfr:'Generic', category:'source', uHeight:0, powerW:0,
+    ports:[one('Out', 'XLR', 'out', 'Analog')]},
+  {id:'t-ceil', short:'CMIC', model:'PoE Ceiling Array Mic', mfr:'Generic', category:'source', uHeight:0, powerW:12,
+    ports:[one('Dante/PoE', 'RJ45', 'io', 'Dante Pri')]},
+  // Video
+  {id:'t-ptz', short:'CAM', model:'PTZ Camera (NDI/SDI)', mfr:'Generic', category:'source', uHeight:0, powerW:25,
+    ports:[one('LAN/PoE+', 'RJ45', 'io', 'NDI'), one('SDI Out', 'BNC', 'out', 'SDI'), one('HDMI Out', 'HDMI', 'out')]},
+  {id:'t-vsw', short:'VSW', model:'Live Production Switcher 8 in', mfr:'Generic', category:'processing', uHeight:1, powerW:90,
+    ports:[...P('SDI In', 8, 'BNC', 'in', 'SDI'), ...P('SDI Out', 4, 'BNC', 'out', 'SDI'), one('Multiview', 'HDMI', 'out'), one('Ethernet', 'RJ45', 'io', 'Control'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-rtr', short:'RTR', model:'12x12 12G-SDI Router', mfr:'Generic', category:'processing', uHeight:1, powerW:40,
+    ports:[...P('In', 12, 'BNC', 'in', 'SDI'), ...P('Out', 12, 'BNC', 'out', 'SDI'), one('Ethernet', 'RJ45', 'io', 'Control'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-enc', short:'TX', model:'AV-over-IP Encoder', mfr:'Generic', category:'interface', uHeight:0, powerW:12,
+    ports:[one('HDMI In', 'HDMI', 'in'), one('HDMI Loop', 'HDMI', 'out'), one('LAN/PoE', 'RJ45', 'io', 'IPMX'), one('RS-232', 'DB9', 'io')]},
+  {id:'t-dec', short:'RX', model:'AV-over-IP Decoder', mfr:'Generic', category:'distribution', uHeight:0, powerW:12,
+    ports:[one('LAN/PoE', 'RJ45', 'io', 'IPMX'), one('HDMI Out', 'HDMI', 'out'), one('RS-232', 'DB9', 'io')]},
+  {id:'t-conv', short:'CONV', model:'HDMI to SDI Converter', mfr:'Generic', category:'interface', uHeight:0, powerW:5,
+    ports:[one('HDMI In', 'HDMI', 'in'), one('SDI Out', 'BNC', 'out', 'SDI')]},
+  {id:'t-disp', short:'LCD', model:'Commercial Display', mfr:'Generic', category:'destination', uHeight:0, powerW:200,
+    ports:[...P('HDMI', 2, 'HDMI', 'in'), one('LAN', 'RJ45', 'io', 'Control'), one('RS-232', 'DB9', 'io'), one('Power', 'IEC', 'in', 'Power')]},
+  {id:'t-proj', short:'PROJ', model:'Laser Projector', mfr:'Generic', category:'destination', uHeight:0, powerW:600,
+    ports:[one('HDMI', 'HDMI', 'in'), one('SDI In', 'BNC', 'in', 'SDI'), one('HDBaseT', 'RJ45', 'in', 'HDBaseT'), one('LAN', 'RJ45', 'io', 'Control'), one('Power', 'IEC', 'in', 'Power')]},
+  {id:'t-rec', short:'REC', model:'Recorder / Streamer', mfr:'Generic', category:'destination', uHeight:1, powerW:40,
+    ports:[one('SDI In', 'BNC', 'in', 'SDI'), one('HDMI In', 'HDMI', 'in'), one('LAN', 'RJ45', 'io'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-pc', short:'PC', model:'Presentation / Media PC', mfr:'Generic', category:'control', uHeight:2, powerW:350,
+    ports:[...P('HDMI Out', 2, 'HDMI', 'out'), one('DP Out', 'DP', 'out'), one('LAN', 'RJ45', 'io'), one('Dante VSC', 'RJ45', 'io', 'Dante Pri'), ...P('USB', 2, 'USB', 'io'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-ctl', short:'CTL', model:'Control Processor', mfr:'Generic', category:'control', uHeight:1, powerW:25,
+    ports:[one('LAN', 'RJ45', 'io', 'Control'), one('Control LAN', 'RJ45', 'io', 'Control'), ...P('COM', 4, 'DB9', 'io'), one('PSU', 'IEC', 'in', 'Power')]},
+  {id:'t-tp', short:'TP', model:'PoE Touch Panel', mfr:'Generic', category:'control', uHeight:0, powerW:15,
+    ports:[one('LAN/PoE', 'RJ45', 'io', 'Control')]},
+  // Power / passive
+  {id:'t-pdu', short:'PDU', model:'8-way Switched PDU', mfr:'Generic', category:'power', uHeight:1, powerW:0,
+    ports:[one('Inlet', 'powerCON', 'in', 'Power'), ...P('Outlet', 8, 'IEC', 'out', 'Power'), one('LAN', 'RJ45', 'io', 'Management')]},
+  {id:'t-pdu2', short:'PDU', model:'4-way powerCON Distro', mfr:'Generic', category:'power', uHeight:1, powerW:0,
+    ports:[one('Inlet', 'powerCON', 'in', 'Power'), ...P('Out', 4, 'powerCON', 'out', 'Power')]},
+  {id:'t-ups', short:'UPS', model:'UPS 1500VA', mfr:'Generic', category:'power', uHeight:2, powerW:0,
+    ports:[one('Inlet', 'IEC', 'in', 'Power'), ...P('Outlet', 6, 'IEC', 'out', 'Power'), one('LAN', 'RJ45', 'io', 'Management')]},
+  {id:'t-blank', short:'BLANK', model:'Blank Panel 1U', mfr:'Generic', category:'other', uHeight:1, powerW:0, ports:[]},
+  {id:'t-shelf', short:'SHELF', model:'Rack Shelf 2U', mfr:'Generic', category:'other', uHeight:2, powerW:0, ports:[]},
+];
+
+/* ---------------- State ---------------- */
+let S;              // project data (persisted)
+const UI = {tab:'project', site:'', patchA:{d:'', p:''}, patchB:{d:'', p:''}, seq:1, link:{cable:'', length:'', color:'', notes:''},
+  cableSort:{key:'cableId', dir:1}, cableQ:'', cableType:'', devQ:'', devCat:'', flowSite:'', flowPower:false, flowAll:false, flowIds:true, flowFocus:'',
+  labelType:'', netSite:'', drag:null};
+let undoStack = [];
+let M = null;       // modal working copy
+
+function blankProject() {
+  return {version:1, project:{name:'New Project', client:'', venue:'', date:'', engineer:'', contact:'', revision:'A', notes:''},
+    sites:[], racks:[], devices:[], links:[], templates:[]};
+}
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { S = normalize(JSON.parse(raw)); return; } } catch (e) { console.warn(e); }
+  S = demoProject();
+}
+function normalize(d) {
+  const b = blankProject();
+  d = Object.assign(b, d || {});
+  d.project = Object.assign(blankProject().project, d.project);
+  for (const k of ['sites', 'racks', 'devices', 'links', 'templates']) if (!Array.isArray(d[k])) d[k] = [];
+  d.devices.forEach(x => { x.ports = Array.isArray(x.ports) ? x.ports : []; x.ports.forEach(p => p.id = p.id || uid()); });
+  return d;
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { toast('Could not save to browser storage: ' + e.message); }
+}
+function snap() { undoStack.push(JSON.stringify(S)); if (undoStack.length > 60) undoStack.shift(); }
+function commit() { save(); render(); }
+
+/* ---------------- Lookups ---------------- */
+const devById = id => S.devices.find(d => d.id === id);
+const siteById = id => S.sites.find(s => s.id === id);
+const rackById = id => S.racks.find(r => r.id === id);
+const portOf = (d, pid) => d && d.ports.find(p => p.id === pid);
+const allTemplates = () => [...BUILTIN_TEMPLATES, ...S.templates];
+const conn = c => CONNECTORS[c] || {group:c, label:c, cable:'Cable', prefix:'CBL', color:'#94a3b8'};
+const catOf = c => CATEGORIES[c] || CATEGORIES.other;
+
+function portMap() {
+  const m = new Map();
+  for (const l of S.links) { m.set(l.a.d + '|' + l.a.p, l); m.set(l.b.d + '|' + l.b.p, l); }
+  return m;
+}
+function otherEnd(l, devId, portId) { return (l.a.d === devId && l.a.p === portId) ? l.b : l.a; }
+function endText(e) {
+  const d = devById(e.d), p = portOf(d, e.p);
+  return d ? `${d.name} · ${p ? p.name : '?'}` : '(missing)';
+}
+function devLocation(d) {
+  const s = siteById(d.siteId), r = rackById(d.rackId);
+  return [s && s.name, r ? `${r.name}${d.uPos ? ' U' + d.uPos : ''}` : d.location].filter(Boolean).join(' / ');
+}
+function sortedDevices(list = S.devices) {
+  const siteIdx = id => { const i = S.sites.findIndex(s => s.id === id); return i < 0 ? 999 : i; };
+  return [...list].sort((a, b) => siteIdx(a.siteId) - siteIdx(b.siteId) || a.name.localeCompare(b.name, undefined, {numeric:true}));
+}
+function deviceOptions(selected, filter) {
+  let html = '<option value="">— select device —</option>';
+  const groups = [...S.sites.map(s => ({id:s.id, name:s.name})), {id:'', name:'(No site)'}];
+  for (const g of groups) {
+    const list = sortedDevices(S.devices.filter(d => (d.siteId || '') === g.id && (!filter || filter(d))));
+    if (!list.length) continue;
+    html += `<optgroup label="${esc(g.name)}">` + list.map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.name)} — ${esc(d.model)}</option>`).join('') + '</optgroup>';
+  }
+  return html;
+}
+function siteOptions(selected, allLabel) {
+  return (allLabel ? `<option value="">${esc(allLabel)}</option>` : '') + S.sites.map(s => `<option value="${s.id}" ${s.id === selected ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+}
+
+/* ---------------- Rack helpers ---------------- */
+function rackOccupancy(rackId, excludeId) {
+  const used = new Map();
+  for (const d of S.devices) if (d.rackId === rackId && d.id !== excludeId && d.uPos && d.uHeight > 0)
+    for (let u = d.uPos; u < d.uPos + d.uHeight; u++) used.set(u, d);
+  return used;
+}
+function fits(rackId, bottomU, h, excludeId) {
+  const r = rackById(rackId); if (!r) return false;
+  if (bottomU < 1 || bottomU + h - 1 > r.heightU) return false;
+  const used = rackOccupancy(rackId, excludeId);
+  for (let u = bottomU; u < bottomU + h; u++) if (used.has(u)) return false;
+  return true;
+}
+function firstFreeU(rackId, h, excludeId) {
+  const r = rackById(rackId); if (!r || h < 1) return 0;
+  for (let top = r.heightU; top - h + 1 >= 1; top--) if (fits(rackId, top - h + 1, h, excludeId)) return top - h + 1;
+  return 0;
+}
+
+/* ---------------- Link logic ---------------- */
+function checkLink(a, b, ignoreLinkId) {
+  const errors = [], warns = [];
+  const da = devById(a.d), db = devById(b.d), pa = portOf(da, a.p), pb = portOf(db, b.p);
+  if (!pa || !pb) return {errors:['Select a port on both sides'], warns};
+  if (a.d === b.d && a.p === b.p) errors.push('Cannot connect a port to itself');
+  const pm = portMap();
+  const la = pm.get(a.d + '|' + a.p), lb = pm.get(b.d + '|' + b.p);
+  if (la && la.id !== ignoreLinkId) errors.push(`${da.name} · ${pa.name} is already patched (${la.cableId})`);
+  if (lb && lb.id !== ignoreLinkId) errors.push(`${db.name} · ${pb.name} is already patched (${lb.cableId})`);
+  if (conn(pa.conn).group !== conn(pb.conn).group) errors.push(`Connector mismatch: ${pa.conn} ↔ ${pb.conn} (needs adapter / converter)`);
+  if (pa.dir === pb.dir && pa.dir !== 'io') warns.push(`Direction: ${pa.dir.toUpperCase()} → ${pb.dir.toUpperCase()} (both ports are ${pa.dir === 'in' ? 'inputs' : 'outputs'})`);
+  const generic = ['', 'Uplink', 'PoE', 'Power', 'Analog'];
+  if (pa.proto && pb.proto && pa.proto !== pb.proto && !generic.includes(pa.proto) && !generic.includes(pb.proto))
+    warns.push(`Protocol differs: ${pa.proto} ↔ ${pb.proto}`);
+  if (pa.vlan && pb.vlan && String(pa.vlan) !== String(pb.vlan)) warns.push(`VLAN differs: ${pa.vlan} ↔ ${pb.vlan}`);
+  return {errors, warns, pa, pb, da, db};
+}
+function nextCableId(prefix, extra = []) {
+  let max = 0;
+  const re = new RegExp('^' + prefix + '-(\\d+)$');
+  for (const id of [...S.links.map(l => l.cableId), ...extra]) { const m = re.exec(id || ''); if (m) max = Math.max(max, +m[1]); }
+  return `${prefix}-${pad(max + 1, 3)}`;
+}
+
+/* ---------------- Issues / validation ---------------- */
+function computeIssues() {
+  const out = [];
+  const add = (level, msg) => out.push({level, msg});
+  // Links
+  for (const l of S.links) {
+    const da = devById(l.a.d), db = devById(l.b.d), pa = portOf(da, l.a.p), pb = portOf(db, l.b.p);
+    if (!pa || !pb) { add('error', `Cable ${l.cableId} references a missing device/port`); continue; }
+    if (conn(pa.conn).group !== conn(pb.conn).group) add('error', `${l.cableId}: connector mismatch ${pa.conn} ↔ ${pb.conn} (${da.name} → ${db.name})`);
+    if (pa.dir === pb.dir && pa.dir !== 'io') add('warn', `${l.cableId}: ${pa.dir}→${pb.dir} (${endText(l.a)} → ${endText(l.b)})`);
+  }
+  const ids = {};
+  S.links.forEach(l => { ids[l.cableId] = (ids[l.cableId] || 0) + 1; });
+  Object.entries(ids).filter(([, n]) => n > 1).forEach(([id, n]) => add('error', `Cable ID ${id} is used ${n} times`));
+  // IPs
+  const ips = {};
+  for (const d of S.devices) {
+    if (!d.ip) continue;
+    if (!/^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/.test(d.ip)) add('error', `${d.name}: invalid IP "${d.ip}"`);
+    (ips[d.ip] = ips[d.ip] || []).push(d.name);
+  }
+  Object.entries(ips).filter(([, l]) => l.length > 1).forEach(([ip, l]) => add('error', `Duplicate IP ${ip}: ${l.join(', ')}`));
+  // Racks
+  for (const r of S.racks) {
+    const seen = new Map();
+    for (const d of S.devices.filter(x => x.rackId === r.id && x.uHeight > 0 && x.uPos)) {
+      if (d.uPos + d.uHeight - 1 > r.heightU) add('error', `${d.name} exceeds height of rack ${r.name}`);
+      for (let u = d.uPos; u < d.uPos + d.uHeight; u++) {
+        if (seen.has(u)) add('error', `Rack ${r.name} U${u}: ${seen.get(u)} overlaps ${d.name}`);
+        seen.set(u, d.name);
+      }
+    }
+    const w = S.devices.filter(x => x.rackId === r.id).reduce((t, d) => t + (+d.powerW || 0), 0);
+    if (r.maxW && w > r.maxW) add('warn', `Rack ${r.name}: power ${w} W exceeds budget ${r.maxW} W`);
+  }
+  // Dante redundancy: Pri & Sec landing on same switch
+  const pm = portMap();
+  for (const d of S.devices) {
+    const pri = d.ports.find(p => p.proto === 'Dante Pri'), sec = d.ports.find(p => p.proto === 'Dante Sec');
+    if (!pri || !sec) continue;
+    const lp = pm.get(d.id + '|' + pri.id), ls = pm.get(d.id + '|' + sec.id);
+    if (lp && ls) {
+      const op = otherEnd(lp, d.id, pri.id).d, os = otherEnd(ls, d.id, sec.id).d;
+      if (op === os) add('warn', `${d.name}: Dante Primary and Secondary connect to the same switch (${devById(op)?.name}) — no redundancy`);
+    }
+  }
+  // VLAN on switch port vs device
+  for (const l of S.links) {
+    for (const [me, other] of [[l.a, l.b], [l.b, l.a]]) {
+      const pd = portOf(devById(me.d), me.p), od = devById(other.d);
+      const op = portOf(od, other.p);
+      if (pd && pd.vlan && od && od.vlan && op && String(pd.vlan) !== String(od.vlan) && !op.vlan && op.proto !== 'Dante Sec')
+        add('warn', `${l.cableId}: switch port VLAN ${pd.vlan} but ${od.name} is on VLAN ${od.vlan}`);
+    }
+  }
+  for (const d of S.devices) if (d.rackId && !rackById(d.rackId)) add('warn', `${d.name}: assigned to a deleted rack`);
+  return out;
+}
+
+/* ---------------- Rendering ---------------- */
+const TABS = [
+  ['project', '🏢 Project'], ['racks', '🗄 Racks'], ['devices', '🎛 Equipment'], ['patch', '🔌 Patch'],
+  ['cables', '📋 Cable Schedule'], ['flow', '🔀 Signal Flow'], ['network', '🌐 Network / IP'],
+  ['labels', '🏷 Labels'], ['report', '📄 Rider / Report'], ['library', '📚 Library'],
+];
+function render() {
+  const issues = computeIssues();
+  const errs = issues.filter(i => i.level === 'error').length;
+  $('#projName').textContent = S.project.name + (S.project.venue ? ' — ' + S.project.venue : '');
+  $('#nav').innerHTML = TABS.map(([id, label]) => `<button class="${UI.tab === id ? 'active' : ''}" onclick="App.tab('${id}')">${label}${id === 'project' && errs ? `<span class="badge">${errs}</span>` : ''}</button>`).join('');
+  const views = {project:viewProject, racks:viewRacks, devices:viewDevices, patch:viewPatch, cables:viewCables, flow:viewFlow, network:viewNetwork, labels:viewLabels, report:viewReport, library:viewLibrary};
+  $('#main').innerHTML = (views[UI.tab] || viewProject)(issues);
+}
+
+/* ---- Project ---- */
+function viewProject(issues) {
+  const p = S.project;
+  const f = (k, label, type = 'text') => `<label>${label}<input type="${type}" value="${esc(p[k])}" onchange="App.setProj('${k}', this.value)"></label>`;
+  const nPorts = S.devices.reduce((t, d) => t + d.ports.length, 0);
+  const totW = S.devices.reduce((t, d) => t + (+d.powerW || 0), 0);
+  return `
+  <div class="grid g4" style="margin-bottom:14px">
+    <div class="stat"><b>${S.sites.length}</b><span>Sites</span></div>
+    <div class="stat"><b>${S.racks.length}</b><span>Racks</span></div>
+    <div class="stat"><b>${S.devices.length}</b><span>Devices</span></div>
+    <div class="stat"><b>${S.links.length}</b><span>Cables / patches</span></div>
+    <div class="stat"><b>${nPorts ? Math.round(S.links.length * 2 / nPorts * 100) : 0}%</b><span>Ports in use (${S.links.length * 2}/${nPorts})</span></div>
+    <div class="stat"><b>${(totW / 1000).toFixed(1)} kW</b><span>Est. power load</span></div>
+  </div>
+  <div class="grid g2">
+    <div>
+      <div class="card"><h3>Project details</h3>
+        <div class="form">
+          ${f('name', 'Project / show name')}${f('client', 'Client')}${f('venue', 'Venue')}${f('date', 'Date', 'date')}
+          ${f('engineer', 'Engineer / designer')}${f('contact', 'Contact (phone / email)')}${f('revision', 'Revision')}
+          <label class="full">Notes<textarea onchange="App.setProj('notes', this.value)">${esc(p.notes)}</textarea></label>
+        </div>
+      </div>
+      <div class="card"><h3>Project file</h3>
+        <div class="toolbar" style="margin:0">
+          <button onclick="App.exportJSON()">💾 Save project (.json)</button>
+          <button onclick="document.getElementById('fileIn').click()">📂 Open project</button>
+          <button onclick="App.loadDemo()">✨ Load demo</button>
+          <button class="danger" onclick="App.newProject()">🗑 New blank project</button>
+        </div>
+        <p class="muted" style="margin:8px 0 0">Work is auto-saved in this browser. Save a .json file to back up or share with your team.</p>
+      </div>
+      <div class="card"><h3>Validation (${issues.length})</h3>
+        ${issues.length ? issues.map(i => `<div class="issue ${i.level}">${i.level === 'error' ? '⛔' : '⚠️'} ${esc(i.msg)}</div>`).join('') : '<div class="ok">✔ No problems found</div>'}
+      </div>
+    </div>
+    <div class="card"><h3 style="display:flex;justify-content:space-between">Sites &amp; racks <button class="sm primary" onclick="App.editSite()">+ Add site</button></h3>
+      ${S.sites.length ? S.sites.map(s => {
+        const racks = S.racks.filter(r => r.siteId === s.id);
+        const nd = S.devices.filter(d => d.siteId === s.id).length;
+        return `<div class="card" style="background:var(--panel2)">
+          <div style="display:flex;gap:8px;align-items:center">
+            <b style="flex:1">📍 ${esc(s.name)} <span class="muted" style="font-weight:normal">${esc(s.location || '')}</span></b>
+            <span class="pill">${nd} devices</span>
+            <button class="sm" onclick="App.editSite('${s.id}')">Edit</button>
+            <button class="sm" onclick="App.editRack(null,'${s.id}')">+ Rack</button>
+          </div>
+          ${racks.length ? `<table style="margin-top:8px"><tr><th>Rack</th><th>Size</th><th>Used</th><th>Power</th><th></th></tr>
+          ${racks.map(r => {
+            const used = [...rackOccupancy(r.id).keys()].length;
+            const w = S.devices.filter(d => d.rackId === r.id).reduce((t, d) => t + (+d.powerW || 0), 0);
+            return `<tr><td>🗄 ${esc(r.name)} <span class="muted">${esc(r.location || '')}</span></td><td>${r.heightU}U</td><td>${used}/${r.heightU}U</td>
+              <td class="${r.maxW && w > r.maxW ? 'err' : ''}">${w} W${r.maxW ? ' / ' + r.maxW : ''}</td>
+              <td style="text-align:right"><button class="sm" onclick="App.goRack('${s.id}')">View</button> <button class="sm" onclick="App.editRack('${r.id}')">Edit</button></td></tr>`;
+          }).join('')}</table>` : '<div class="muted" style="margin-top:6px">No racks yet</div>'}
+        </div>`;
+      }).join('') : '<div class="empty">Add a site (building, room, stage, OB truck…) to get started.</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---- Racks ---- */
+function viewRacks() {
+  if (!S.sites.length) return '<div class="empty">Create a site first in the Project tab.</div>';
+  if (!siteById(UI.site)) UI.site = S.sites[0].id;
+  const racks = S.racks.filter(r => r.siteId === UI.site);
+  const loose = sortedDevices(S.devices.filter(d => d.siteId === UI.site && !rackById(d.rackId) && d.uHeight > 0));
+  const nonRack = sortedDevices(S.devices.filter(d => d.siteId === UI.site && !(d.uHeight > 0)));
+  const ROW = 22;
+  const rackHtml = r => {
+    const devs = S.devices.filter(d => d.rackId === r.id && d.uHeight > 0 && d.uPos);
+    const w = devs.reduce((t, d) => t + (+d.powerW || 0), 0);
+    let slots = '';
+    for (let u = r.heightU; u >= 1; u--)
+      slots += `<div class="u-slot" style="top:${(r.heightU - u) * ROW}px" ondragover="App.dragOver(event)" ondragleave="this.classList.remove('over')" ondrop="App.dropU(event,'${r.id}',${u})"><span class="u-num">${u}</span></div>`;
+    const blocks = devs.map(d => `<div class="rack-dev" draggable="true" ondragstart="App.dragStart(event,'${d.id}')" ondragend="App.dragEnd()" ondblclick="App.editDevice('${d.id}')"
+        title="${esc(d.name)} — ${esc(d.model)} (double-click to edit)" style="top:${(r.heightU - (d.uPos + d.uHeight - 1)) * ROW}px;height:${d.uHeight * ROW}px;background:${catOf(d.category).color}">
+        <span class="x" onclick="App.unrack('${d.id}')" title="Remove from rack">✕</span>
+        <b>${esc(d.name)}</b>${d.uHeight > 1 ? `<small>${esc(d.model)}${d.ip ? ' · ' + esc(d.ip) : ''}</small>` : ''}</div>`).join('');
+    return `<div class="rack">
+      <div class="rack-title"><b>🗄 ${esc(r.name)} <span class="muted">${r.heightU}U</span></b>
+        <span class="muted">${w} W ${r.maxW ? '/ ' + r.maxW + ' W' : ''} <button class="sm" onclick="App.editRack('${r.id}')">Edit</button></span></div>
+      <div class="rack-frame"><div class="rack-body" style="height:${r.heightU * ROW}px">${slots}${blocks}</div></div>
+    </div>`;
+  };
+  return `
+  <div class="toolbar">
+    <b>Site:</b> ${S.sites.map(s => `<button class="${s.id === UI.site ? 'primary' : ''}" onclick="App.setUI('site','${s.id}')">${esc(s.name)}</button>`).join('')}
+    <span class="spacer"></span>
+    <button onclick="App.addFromLibrary()">+ Add equipment</button>
+    <button onclick="App.editRack(null,'${UI.site}')">+ Add rack</button>
+  </div>
+  <p class="muted" style="margin-top:-4px">Drag equipment from the tray into a rack slot (drop where the <b>top</b> of the unit should go). Drag between racks to move, drag back to the tray to un-rack, double-click to edit.</p>
+  <div class="racks">
+    <div class="tray" ondragover="App.dragOver(event)" ondragleave="this.classList.remove('over')" ondrop="App.dropTray(event)">
+      <b>Unracked equipment</b>
+      ${loose.length ? loose.map(d => `<div class="tray-item" draggable="true" ondragstart="App.dragStart(event,'${d.id}')" ondragend="App.dragEnd()" ondblclick="App.editDevice('${d.id}')" style="background:${catOf(d.category).color}">
+        <b>${esc(d.name)}</b> <span style="opacity:.8">${d.uHeight}U</span><br><small>${esc(d.model)}</small></div>`).join('') : '<p class="muted">All rack-mount gear is racked.</p>'}
+      <hr style="border-color:var(--line)">
+      <b>Non-rack equipment</b>
+      ${nonRack.length ? nonRack.map(d => `<div class="muted" style="font-size:12px;cursor:pointer" ondblclick="App.editDevice('${d.id}')">• ${esc(d.name)} <i>${esc(d.location || '')}</i></div>`).join('') : '<p class="muted">—</p>'}
+    </div>
+    ${racks.length ? racks.map(rackHtml).join('') : '<div class="empty">No racks in this site yet.</div>'}
+  </div>`;
+}
+
+/* ---- Devices ---- */
+function viewDevices() {
+  const q = UI.devQ.toLowerCase();
+  const pm = portMap();
+  const list = sortedDevices(S.devices.filter(d => (!UI.devCat || d.category === UI.devCat) && (!UI.site || d.siteId === UI.site) &&
+    (!q || [d.name, d.model, d.mfr, d.ip, d.location, d.notes].join(' ').toLowerCase().includes(q))));
+  return `
+  <div class="toolbar">
+    <button class="primary" onclick="App.addFromLibrary()">+ Add from library</button>
+    <button onclick="App.editDevice()">+ Custom device</button>
+    <input placeholder="🔍 Search…" value="${esc(UI.devQ)}" oninput="App.setUI('devQ', this.value, true)" style="width:220px">
+    <select onchange="App.setUI('site', this.value)">${siteOptions(UI.site, 'All sites')}</select>
+    <select onchange="App.setUI('devCat', this.value)"><option value="">All categories</option>${Object.entries(CATEGORIES).map(([k, c]) => `<option value="${k}" ${k === UI.devCat ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select>
+    <span class="muted">${list.length} of ${S.devices.length}</span>
+  </div>
+  <div class="tablewrap"><table>
+    <tr><th>Name</th><th>Model</th><th>Category</th><th>Location</th><th>IP</th><th>VLAN</th><th>Ports used</th><th>Power</th><th></th></tr>
+    ${list.map(d => {
+      const used = d.ports.filter(p => pm.has(d.id + '|' + p.id)).length;
+      return `<tr>
+        <td><b style="cursor:pointer" onclick="App.editDevice('${d.id}')">${esc(d.name)}</b></td>
+        <td>${esc(d.model)} <span class="muted">${esc(d.mfr || '')}</span></td>
+        <td><span class="dot" style="background:${catOf(d.category).color}"></span>${esc(catOf(d.category).label.split(' (')[0])}</td>
+        <td>${esc(devLocation(d))}</td><td class="mono">${esc(d.ip || '')}</td><td>${esc(d.vlan || '')}</td>
+        <td>${used}/${d.ports.length}</td><td>${d.powerW ? d.powerW + ' W' : ''}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="sm" onclick="App.patchFrom('${d.id}')">Patch</button>
+          <button class="sm" onclick="App.editDevice('${d.id}')">Edit</button>
+          <button class="sm" onclick="App.dupDevice('${d.id}')">Duplicate</button>
+          <button class="sm danger" onclick="App.delDevice('${d.id}')">✕</button></td></tr>`;
+    }).join('') || `<tr><td colspan="9" class="empty">No equipment yet. Click “Add from library”.</td></tr>`}
+  </table></div>`;
+}
+
+/* ---- Patch ---- */
+function viewPatch() {
+  if (!S.devices.length) return '<div class="empty">Add equipment first.</div>';
+  const pm = portMap();
+  const A = UI.patchA, B = UI.patchB;
+  const selA = portOf(devById(A.d), A.p);
+  const pane = (side, sel, ref) => {
+    const d = devById(sel.d);
+    let ports = '';
+    if (d) {
+      ports = d.ports.map(p => {
+        const l = pm.get(d.id + '|' + p.id);
+        const other = l ? otherEnd(l, d.id, p.id) : null;
+        let cls = 'port' + (sel.p === p.id ? ' sel' : '') + (l ? ' used' : '');
+        if (side === 'B' && ref) {
+          const ok = !l && conn(ref.conn).group === conn(p.conn).group && !(A.d === d.id && A.p === p.id);
+          cls += ok ? ' compat' : ' dim';
+        }
+        return `<div class="${cls}" onclick="App.pickPort('${side}','${p.id}')">
+          <span class="dot" style="background:${conn(p.conn).color}"></span>
+          <span class="pname">${esc(p.name)}</span>
+          <span class="pdir" title="${p.dir}">${DIR_ICON[p.dir] || ''}</span>
+          <span class="pill">${esc(p.conn)}</span>${p.proto ? `<span class="pill">${esc(p.proto)}</span>` : ''}${p.vlan ? `<span class="pill">VLAN ${esc(p.vlan)}</span>` : ''}
+          <span class="plink">${l ? `<b class="mono">${esc(l.cableId)}</b> → ${esc(endText(other))}` : '<span class="ok">free</span>'}</span>
+        </div>`;
+      }).join('') || '<div class="muted">This device has no ports.</div>';
+    }
+    return `<div class="pane">
+      <div class="pane-head"><b style="align-self:center">${side === 'A' ? 'FROM' : 'TO'}</b>
+        <select onchange="App.pickDev('${side}', this.value)">${deviceOptions(sel.d)}</select>
+        ${d ? `<button class="sm" onclick="App.editDevice('${d.id}')">Edit</button>` : ''}</div>
+      ${d ? `<div class="muted" style="margin-bottom:6px">${esc(d.model)} · ${esc(devLocation(d))}${d.ip ? ' · ' + esc(d.ip) : ''}</div>` : ''}
+      <div class="ports">${d ? ports : '<div class="empty">Choose a device</div>'}</div></div>`;
+  };
+  // connect bar
+  let bar = '<span class="muted sum">Select a port on each side to create a patch.</span>';
+  const ea = {d:A.d, p:A.p}, eb = {d:B.d, p:B.p};
+  const usedA = A.p && pm.get(A.d + '|' + A.p);
+  if (usedA && !B.p) {
+    bar = `<span class="sum">Port is patched with <b class="mono">${esc(usedA.cableId)}</b> → ${esc(endText(otherEnd(usedA, A.d, A.p)))}</span>
+      <button onclick="App.editLink('${usedA.id}')">Edit cable</button> <button class="danger" onclick="App.delLink('${usedA.id}')">Disconnect</button>`;
+  } else if (A.p && B.p) {
+    const c = checkLink(ea, eb);
+    const def = conn(selA.conn);
+    bar = `<div class="sum">
+        <b>${esc(endText(ea))}</b> ⟶ <b>${esc(endText(eb))}</b><br>
+        ${c.errors.map(e => `<span class="err">⛔ ${esc(e)}</span>`).join('<br>')}
+        ${c.warns.map(e => `<span class="warn">⚠️ ${esc(e)}</span>`).join('<br>')}
+        ${!c.errors.length && !c.warns.length ? '<span class="ok">✔ Compatible</span>' : ''}
+      </div>
+      <label class="chk">Cable <input style="width:150px" value="${esc(UI.link.cable || def.cable)}" onchange="UI.link.cable=this.value"></label>
+      <label class="chk">Length (m) <input style="width:64px" type="number" min="0" step="0.5" value="${esc(UI.link.length)}" onchange="UI.link.length=this.value"></label>
+      <label class="chk">Colour <select onchange="UI.link.color=this.value">${CABLE_COLORS.map(c => `<option ${c === UI.link.color ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="chk" title="Patch N consecutive free compatible ports in one go">× <input style="width:52px" type="number" min="1" max="128" value="${UI.seq}" onchange="UI.seq=Math.max(1,+this.value||1)"></label>
+      <button class="primary" ${c.errors.length ? 'disabled' : ''} onclick="App.connect()">🔌 Connect</button>`;
+  }
+  return `<p class="muted" style="margin-top:0">Pick a source device &amp; port on the left, then a destination on the right. Compatible free ports are highlighted. Use “×N” to patch a run of consecutive ports (e.g. stagebox outs 1–8 → amp ins).</p>
+    <div class="patch">${pane('A', A, null)}${pane('B', B, selA && !usedA ? selA : null)}</div>
+    <div class="connectbar">${bar}</div>`;
+}
+
+/* ---- Cable schedule ---- */
+function cableRows() {
+  return S.links.map(l => {
+    const da = devById(l.a.d), db = devById(l.b.d), pa = portOf(da, l.a.p), pb = portOf(db, l.b.p);
+    return {l, cableId:l.cableId, cable:l.cable, length:l.length, color:l.color, notes:l.notes,
+      fromDev:da?.name || '?', fromPort:pa?.name || '?', fromLoc:da ? devLocation(da) : '', toDev:db?.name || '?', toPort:pb?.name || '?', toLoc:db ? devLocation(db) : '',
+      conn:pa?.conn || '', proto:pa?.proto || pb?.proto || '', siteA:da?.siteId, siteB:db?.siteId, cross: da && db && da.siteId !== db.siteId};
+  });
+}
+function viewCables() {
+  const q = UI.cableQ.toLowerCase();
+  const {key, dir} = UI.cableSort;
+  const rows = cableRows().filter(r => (!UI.cableType || r.cable === UI.cableType) && (!UI.site || r.siteA === UI.site || r.siteB === UI.site) &&
+    (!q || [r.cableId, r.cable, r.fromDev, r.fromPort, r.toDev, r.toPort, r.notes, r.proto].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => String(a[key] ?? '').localeCompare(String(b[key] ?? ''), undefined, {numeric:true}) * dir);
+  const types = [...new Set(S.links.map(l => l.cable))].sort();
+  const th = (k, label) => `<th class="sortable" onclick="App.sortCables('${k}')">${label}${key === k ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  return `
+  <div class="toolbar">
+    <input placeholder="🔍 Search cables…" value="${esc(UI.cableQ)}" oninput="App.setUI('cableQ', this.value, true)" style="width:220px">
+    <select onchange="App.setUI('site', this.value)">${siteOptions(UI.site, 'All sites')}</select>
+    <select onchange="App.setUI('cableType', this.value)"><option value="">All cable types</option>${types.map(t => `<option ${t === UI.cableType ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+    <span class="muted">${rows.length} cables</span><span class="spacer"></span>
+    <button onclick="App.renumber()">🔢 Renumber IDs</button>
+    <button onclick="App.exportCSV('cables')">⬇ CSV</button>
+    <button onclick="App.tab('patch')" class="primary">+ New patch</button>
+  </div>
+  <div class="tablewrap"><table>
+    <tr>${th('cableId', 'Cable ID')}${th('cable', 'Type')}${th('length', 'Len')}${th('fromDev', 'From device')}${th('fromPort', 'Port')}${th('fromLoc', 'Location')}<th></th>${th('toDev', 'To device')}${th('toPort', 'Port')}${th('toLoc', 'Location')}${th('proto', 'Signal')}${th('notes', 'Notes')}<th></th></tr>
+    ${rows.map(r => `<tr>
+      <td class="mono"><span class="dot" style="background:${conn(r.conn).color}"></span><b>${esc(r.cableId)}</b></td>
+      <td>${esc(r.cable)}${r.color ? ` <span class="muted">(${esc(r.color)})</span>` : ''}</td><td>${r.length ? esc(r.length) + 'm' : ''}</td>
+      <td><b>${esc(r.fromDev)}</b></td><td>${esc(r.fromPort)}</td><td class="muted">${esc(r.fromLoc)}</td><td>→</td>
+      <td><b>${esc(r.toDev)}</b></td><td>${esc(r.toPort)}</td><td class="muted">${esc(r.toLoc)}${r.cross ? ' <span class="pill warn">inter-site</span>' : ''}</td>
+      <td>${esc(r.proto)}</td><td>${esc(r.notes || '')}</td>
+      <td style="white-space:nowrap"><button class="sm" onclick="App.editLink('${r.l.id}')">Edit</button> <button class="sm danger" onclick="App.delLink('${r.l.id}')">✕</button></td></tr>`).join('')
+      || '<tr><td colspan="13" class="empty">No cables yet — use the Patch tab.</td></tr>'}
+  </table></div>`;
+}
+
+/* ---- Signal flow ---- */
+function viewFlow() {
+  const visDev = d => !UI.flowSite || d.siteId === UI.flowSite;
+  const links = S.links.filter(l => {
+    const da = devById(l.a.d), db = devById(l.b.d);
+    if (!da || !db || (!visDev(da) && !visDev(db))) return false;
+    if (!UI.flowPower && conn(portOf(da, l.a.p)?.conn).group.startsWith('power')) return false;
+    return true;
+  });
+  const linkedDevs = new Set(links.flatMap(l => [l.a.d, l.b.d]));
+  const devs = S.devices.filter(d => linkedDevs.has(d.id) || (UI.flowAll && visDev(d) && (UI.flowPower || d.category !== 'power')));
+  const toolbar = `<div class="toolbar no-print">
+    <select onchange="App.setUI('flowSite', this.value)">${siteOptions(UI.flowSite, 'All sites')}</select>
+    <label class="chk"><input type="checkbox" ${UI.flowPower ? 'checked' : ''} onchange="App.setUI('flowPower', this.checked)"> Power</label>
+    <label class="chk"><input type="checkbox" ${UI.flowAll ? 'checked' : ''} onchange="App.setUI('flowAll', this.checked)"> Unpatched devices &amp; ports</label>
+    <label class="chk"><input type="checkbox" ${UI.flowIds ? 'checked' : ''} onchange="App.setUI('flowIds', this.checked)"> Cable IDs</label>
+    ${UI.flowFocus ? `<button class="sm" onclick="App.setUI('flowFocus','')">Clear highlight</button>` : '<span class="muted">Click a device to highlight its connections.</span>'}
+    <span class="spacer"></span><button onclick="App.exportSVG()">⬇ SVG</button></div>`;
+  if (!devs.length) return toolbar + '<div class="empty">Nothing patched yet.</div>';
+  const pm = new Map();
+  for (const l of links) { pm.set(l.a.d + '|' + l.a.p, l); pm.set(l.b.d + '|' + l.b.p, l); }
+  // columns
+  const usedCols = [...new Set(devs.map(d => catOf(d.category).col))].sort((a, b) => a - b);
+  const colIdx = c => usedCols.indexOf(catOf(c).col);
+  const BW = 210, GAP = 170, HEAD = 34, PR = 17, VGAP = 22, M = 20;
+  const pos = new Map();
+  const colY = usedCols.map(() => M + 20);
+  for (const d of sortedDevices(devs)) {
+    const ci = colIdx(d.category);
+    const ports = d.ports.filter(p => UI.flowAll || pm.has(d.id + '|' + p.id)).filter(p => UI.flowPower || !conn(p.conn).group.startsWith('power'));
+    const h = HEAD + Math.max(1, ports.length) * PR + 6;
+    pos.set(d.id, {x:M + ci * (BW + GAP), y:colY[ci], h, ports, ci});
+    colY[ci] += h + VGAP;
+  }
+  const W = M * 2 + usedCols.length * BW + (usedCols.length - 1) * GAP, H = Math.max(...colY) + M;
+  const anchor = new Map();
+  let boxes = '', edges = '', heads = '';
+  // column headers
+  const colNames = {};
+  for (const d of devs) { const ci = colIdx(d.category); (colNames[ci] = colNames[ci] || new Set()).add(catOf(d.category).label.split(' (')[0]); }
+  usedCols.forEach((_, ci) => { heads += `<text x="${M + ci * (BW + GAP) + BW / 2}" y="${M + 4}" fill="#64748b" font-size="11" text-anchor="middle">${esc([...colNames[ci]].join(' · ').toUpperCase())}</text>`; });
+  for (const d of devs) {
+    const P_ = pos.get(d.id);
+    const focus = !UI.flowFocus || UI.flowFocus === d.id || links.some(l => (l.a.d === UI.flowFocus && l.b.d === d.id) || (l.b.d === UI.flowFocus && l.a.d === d.id));
+    let rows = '';
+    P_.ports.forEach((p, i) => {
+      const l = pm.get(d.id + '|' + p.id);
+      const y = P_.y + HEAD + i * PR + PR / 2;
+      let side = p.dir === 'in' ? 'L' : 'R';
+      if (l) {
+        const o = pos.get(otherEnd(l, d.id, p.id).d);
+        if (o) side = o.ci > P_.ci ? 'R' : o.ci < P_.ci ? 'L' : (p.dir === 'in' ? 'L' : 'R');
+      }
+      const x = side === 'L' ? P_.x : P_.x + BW;
+      anchor.set(d.id + '|' + p.id, {x, y, side});
+      rows += `<circle cx="${x}" cy="${y}" r="3.5" fill="${conn(p.conn).color}"/>
+        <text x="${side === 'L' ? P_.x + 9 : P_.x + BW - 9}" y="${y + 4}" font-size="11" fill="${l ? '#e2e8f0' : '#64748b'}" text-anchor="${side === 'L' ? 'start' : 'end'}">${esc(p.name)}${p.proto && !['Analog', 'Power'].includes(p.proto) ? ' · ' + esc(p.proto) : ''}</text>`;
+    });
+    const c = catOf(d.category).color;
+    boxes += `<g opacity="${focus ? 1 : .2}" style="cursor:pointer" onclick="App.setUI('flowFocus', UI.flowFocus==='${d.id}'?'':'${d.id}')" ondblclick="App.editDevice('${d.id}')">
+      <rect x="${P_.x}" y="${P_.y}" width="${BW}" height="${P_.h}" rx="7" fill="#111a2e" stroke="${c}" stroke-width="1.5"/>
+      <rect x="${P_.x}" y="${P_.y}" width="${BW}" height="${HEAD - 6}" rx="7" fill="${c}"/>
+      <text x="${P_.x + 8}" y="${P_.y + 13}" font-size="12" font-weight="700" fill="#fff">${esc(d.name)}</text>
+      <text x="${P_.x + 8}" y="${P_.y + 24}" font-size="9.5" fill="#e5e7eb" opacity=".85">${esc((d.model + (d.ip ? ' · ' + d.ip : '')).slice(0, 40))}</text>
+      ${rows}</g>`;
+  }
+  for (const l of links) {
+    const a = anchor.get(l.a.d + '|' + l.a.p), b = anchor.get(l.b.d + '|' + l.b.p);
+    if (!a || !b) continue;
+    const focus = !UI.flowFocus || l.a.d === UI.flowFocus || l.b.d === UI.flowFocus;
+    const col = conn(portOf(devById(l.a.d), l.a.p)?.conn).color;
+    const dx = Math.max(60, Math.abs(b.x - a.x) / 2);
+    const c1 = a.x + (a.side === 'R' ? dx : -dx), c2 = b.x + (b.side === 'R' ? dx : -dx);
+    edges += `<path d="M${a.x},${a.y} C${c1},${a.y} ${c2},${b.y} ${b.x},${b.y}" fill="none" stroke="${col}" stroke-width="${focus && UI.flowFocus ? 2.4 : 1.6}" opacity="${focus ? .9 : .08}"><title>${esc(l.cableId + ': ' + endText(l.a) + ' → ' + endText(l.b))}</title></path>`;
+    if (UI.flowIds && focus) {
+      const mx = (a.x + b.x) / 2 + ((a.side === 'R' ? dx : -dx) + (b.side === 'R' ? dx : -dx)) * .375, my = (a.y + b.y) / 2;
+      edges += `<text x="${mx}" y="${my - 2}" font-size="9" fill="${col}" text-anchor="middle" class="mono" paint-order="stroke" stroke="#070c17" stroke-width="3">${esc(l.cableId)}</text>`;
+    }
+  }
+  return toolbar + `<div class="flowwrap"><svg id="flowSvg" xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="background:#070c17">${heads}${edges}${boxes}</svg></div>`;
+}
+
+/* ---- Network ---- */
+function viewNetwork() {
+  const hasNet = d => d.ports.some(p => conn(p.conn).group === 'eth' || conn(p.conn).group === 'fiber');
+  const list = sortedDevices(S.devices.filter(d => hasNet(d) && (!UI.netSite || d.siteId === UI.netSite)));
+  const ipCount = {}; S.devices.forEach(d => { if (d.ip) ipCount[d.ip] = (ipCount[d.ip] || 0) + 1; });
+  const inp = (d, k, w) => `<input class="${k === 'ip' && ipCount[d.ip] > 1 ? 'err' : ''}" data-ipfield="${k === 'ip' ? 1 : ''}" style="${w ? 'width:' + w : ''}" value="${esc(d[k] || '')}" onchange="App.setDevField('${d.id}','${k}',this.value)">`;
+  const pm = portMap();
+  const switches = sortedDevices(S.devices.filter(d => d.category === 'network' && (!UI.netSite || d.siteId === UI.netSite)));
+  const vlans = {};
+  S.devices.forEach(d => { if (d.vlan) (vlans[d.vlan] = vlans[d.vlan] || []).push(d); });
+  return `
+  <div class="toolbar">
+    <select onchange="App.setUI('netSite', this.value)">${siteOptions(UI.netSite, 'All sites')}</select>
+    <span class="spacer"></span>
+    <label class="chk">Auto-fill empty IPs from <input id="ipBase" style="width:130px" value="192.168.1.10" class="mono"></label>
+    <label class="chk">mask <input id="ipMask" style="width:120px" value="255.255.255.0" class="mono"></label>
+    <button onclick="App.autoIP()">⚙ Assign</button>
+    <button onclick="App.exportCSV('ip')">⬇ IP schedule CSV</button>
+  </div>
+  <div class="card"><h3>IP schedule</h3><div class="tablewrap"><table>
+    <tr><th>Device</th><th>Location</th><th>Hostname</th><th>IP address</th><th>Subnet mask</th><th>Gateway</th><th>VLAN</th><th>MAC</th></tr>
+    ${list.map(d => `<tr><td><b>${esc(d.name)}</b><br><span class="muted">${esc(d.model)}</span></td><td class="muted">${esc(devLocation(d))}</td>
+      <td>${inp(d, 'hostname')}</td><td class="mono">${inp(d, 'ip')}</td><td class="mono">${inp(d, 'mask')}</td><td class="mono">${inp(d, 'gateway')}</td><td>${inp(d, 'vlan', '70px')}</td><td class="mono">${inp(d, 'mac')}</td></tr>`).join('')
+      || '<tr><td colspan="8" class="empty">No networked devices.</td></tr>'}
+  </table></div></div>
+  ${Object.keys(vlans).length ? `<div class="card"><h3>VLANs</h3>${Object.entries(vlans).sort((a, b) => a[0] - b[0]).map(([v, ds]) => `<div style="margin-bottom:4px"><span class="pill">VLAN ${esc(v)}</span> ${ds.map(d => esc(d.name)).join(', ')}</div>`).join('')}</div>` : ''}
+  <div class="grid g2">
+  ${switches.map(sw => `<div class="card"><h3>🔀 ${esc(sw.name)} — port map <span class="muted" style="font-weight:normal">${esc(sw.model)} ${sw.ip ? '· ' + esc(sw.ip) : ''}</span></h3>
+    <table><tr><th>Port</th><th>VLAN</th><th>Cable</th><th>Connected to</th><th>Remote IP</th></tr>
+    ${sw.ports.filter(p => conn(p.conn).group === 'eth' || conn(p.conn).group === 'fiber').map(p => {
+      const l = pm.get(sw.id + '|' + p.id); const o = l && otherEnd(l, sw.id, p.id); const od = o && devById(o.d);
+      return `<tr><td><span class="dot" style="background:${conn(p.conn).color}"></span>${esc(p.name)}</td>
+        <td><input style="width:60px" value="${esc(p.vlan || '')}" onchange="App.setPortField('${sw.id}','${p.id}','vlan',this.value)"></td>
+        <td class="mono">${l ? esc(l.cableId) : ''}</td><td>${od ? `<b>${esc(od.name)}</b> · ${esc(portOf(od, o.p)?.name)}` : '<span class="muted">—</span>'}</td><td class="mono">${od ? esc(od.ip || '') : ''}</td></tr>`;
+    }).join('')}</table></div>`).join('')}
+  </div>`;
+}
+
+/* ---- Labels ---- */
+function viewLabels() {
+  const types = [...new Set(S.links.map(l => l.cable))].sort();
+  const links = [...S.links].filter(l => !UI.labelType || l.cable === UI.labelType).sort((a, b) => a.cableId.localeCompare(b.cableId, undefined, {numeric:true}));
+  const lab = (l, end) => {
+    const here = end === 'A' ? l.a : l.b, there = end === 'A' ? l.b : l.a;
+    const dh = devById(here.d);
+    return `<div class="label"><div class="bar" style="background:${conn(portOf(dh, here.p)?.conn).color}"></div>
+      <span class="end">${end}</span><div class="cid">${esc(l.cableId)}</div>
+      <div><b>THIS END:</b> ${esc(endText(here))}</div><div><b>OTHER END:</b> ${esc(endText(there))}</div>
+      <div style="color:#555">${esc(l.cable)}${l.length ? ' · ' + esc(l.length) + 'm' : ''}${l.color ? ' · ' + esc(l.color) : ''}</div></div>`;
+  };
+  return `<div class="toolbar no-print">
+      <select onchange="App.setUI('labelType', this.value)"><option value="">All cable types</option>${types.map(t => `<option ${t === UI.labelType ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      <span class="muted">${links.length * 2} labels (both ends)</span><span class="spacer"></span>
+      <button class="primary" onclick="window.print()">🖨 Print labels</button></div>
+    <div class="labels">${links.map(l => lab(l, 'A') + lab(l, 'B')).join('') || '<div class="empty">No cables.</div>'}</div>`;
+}
+
+/* ---- Rider / report ---- */
+function viewReport(issues) {
+  const p = S.project;
+  const pm = portMap();
+  // Equipment list by model
+  const eq = {};
+  S.devices.forEach(d => { const k = `${d.mfr || ''}|${d.model}`; (eq[k] = eq[k] || {mfr:d.mfr, model:d.model, cat:d.category, names:[]}).names.push(d.name); });
+  // Cable BOM
+  const bom = {};
+  S.links.forEach(l => { const k = `${l.cable}|${l.length || ''}`; (bom[k] = bom[k] || {cable:l.cable, length:l.length, n:0}).n++; });
+  const totals = {};
+  S.links.forEach(l => { totals[l.cable] = (totals[l.cable] || 0) + (+l.length || 0); });
+  const rows = cableRows().sort((a, b) => a.cableId.localeCompare(b.cableId, undefined, {numeric:true}));
+  const miniRack = r => {
+    let html = '';
+    const occ = rackOccupancy(r.id);
+    for (let u = r.heightU; u >= 1; u--) {
+      const d = occ.get(u);
+      if (d && u === d.uPos + d.uHeight - 1) html += `<tr><td style="width:24px;color:#64748b">${u}</td><td rowspan="${d.uHeight}" style="background:${catOf(d.category).color}22"><b>${esc(d.name)}</b> <span style="color:#64748b">${esc(d.model)}</span></td></tr>`;
+      else if (d) html += `<tr><td style="width:24px;color:#64748b">${u}</td></tr>`;
+      else html += `<tr><td style="width:24px;color:#64748b">${u}</td><td></td></tr>`;
+    }
+    const w = S.devices.filter(d => d.rackId === r.id).reduce((t, d) => t + (+d.powerW || 0), 0);
+    return `<div class="mini-rack"><b>${esc(r.name)}</b> <span style="color:#64748b">${r.heightU}U · ${w} W</span><table>${html}</table></div>`;
+  };
+  return `<div class="toolbar no-print"><span class="muted">Printable technical rider / patch book. Use your browser's “Save as PDF” to export.</span><span class="spacer"></span>
+      <button onclick="App.exportCSV('cables')">⬇ Cable CSV</button><button onclick="App.exportCSV('devices')">⬇ Equipment CSV</button>
+      <button class="primary" onclick="window.print()">🖨 Print / PDF</button></div>
+  <div class="report">
+    <h1>${esc(p.name)}</h1><div style="color:#475569">Technical rider &amp; patch schedule · Rev ${esc(p.revision)}</div>
+    <div class="meta">
+      <div><span>Client</span>${esc(p.client) || '—'}</div><div><span>Venue</span>${esc(p.venue) || '—'}</div>
+      <div><span>Date</span>${esc(p.date) || '—'}</div><div><span>Engineer</span>${esc(p.engineer) || '—'}</div>
+      <div><span>Contact</span>${esc(p.contact) || '—'}</div><div><span>Devices</span>${S.devices.length}</div>
+      <div><span>Cables</span>${S.links.length}</div><div><span>Generated</span>${new Date().toLocaleString()}</div>
+    </div>
+    ${p.notes ? `<p style="white-space:pre-wrap">${esc(p.notes)}</p>` : ''}
+    ${issues.length ? `<p style="color:#b45309">⚠ ${issues.length} open validation item(s) — see list at end.</p>` : ''}
+
+    <h2>1. Equipment list</h2>
+    <table><tr><th>Qty</th><th>Manufacturer</th><th>Model</th><th>Category</th><th>Units</th></tr>
+    ${Object.values(eq).sort((a, b) => catOf(a.cat).col - catOf(b.cat).col || a.model.localeCompare(b.model)).map(e => `<tr><td><b>${e.names.length}</b></td><td>${esc(e.mfr || '')}</td><td>${esc(e.model)}</td><td>${esc(catOf(e.cat).label.split(' (')[0])}</td><td>${esc(e.names.sort((a, b) => a.localeCompare(b, undefined, {numeric:true})).join(', '))}</td></tr>`).join('')}</table>
+
+    <h2>2. Sites &amp; rack elevations</h2>
+    ${S.sites.map(s => {
+      const racks = S.racks.filter(r => r.siteId === s.id);
+      const nr = sortedDevices(S.devices.filter(d => d.siteId === s.id && !rackById(d.rackId)));
+      return `<h3>📍 ${esc(s.name)} ${s.location ? '— ' + esc(s.location) : ''}</h3>
+        <div>${racks.map(miniRack).join('')}</div>
+        ${nr.length ? `<table><tr><th>Non-rack equipment</th><th>Model</th><th>Position</th><th>IP</th></tr>${nr.map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.model)}</td><td>${esc(d.location || '')}</td><td>${esc(d.ip || '')}</td></tr>`).join('')}</table>` : ''}`;
+    }).join('')}
+
+    <h2 class="pb">3. Cable / patch schedule</h2>
+    <table><tr><th>Cable ID</th><th>Type</th><th>Len</th><th>From</th><th>Port</th><th>Location</th><th>To</th><th>Port</th><th>Location</th><th>Signal</th><th>Notes</th></tr>
+    ${rows.map(r => `<tr><td><b>${esc(r.cableId)}</b></td><td>${esc(r.cable)}</td><td>${r.length ? esc(r.length) + 'm' : ''}</td><td>${esc(r.fromDev)}</td><td>${esc(r.fromPort)}</td><td>${esc(r.fromLoc)}</td><td>${esc(r.toDev)}</td><td>${esc(r.toPort)}</td><td>${esc(r.toLoc)}</td><td>${esc(r.proto)}</td><td>${esc(r.notes || '')}</td></tr>`).join('')}</table>
+
+    <h2>4. Cable pull list (BOM)</h2>
+    <table><tr><th>Cable type</th><th>Length</th><th>Qty</th></tr>
+    ${Object.values(bom).sort((a, b) => a.cable.localeCompare(b.cable) || (+a.length || 0) - (+b.length || 0)).map(b => `<tr><td>${esc(b.cable)}</td><td>${b.length ? esc(b.length) + ' m' : '<i>tbc</i>'}</td><td><b>${b.n}</b></td></tr>`).join('')}
+    ${Object.entries(totals).filter(([, m]) => m).map(([c, m]) => `<tr><td colspan="2" style="text-align:right;color:#475569">Total ${esc(c)}</td><td>${m} m</td></tr>`).join('')}</table>
+
+    <h2 class="pb">5. Network / IP schedule</h2>
+    <table><tr><th>Device</th><th>Location</th><th>Hostname</th><th>IP</th><th>Mask</th><th>Gateway</th><th>VLAN</th></tr>
+    ${sortedDevices(S.devices.filter(d => d.ip || d.vlan)).map(d => `<tr><td>${esc(d.name)}</td><td>${esc(devLocation(d))}</td><td>${esc(d.hostname || '')}</td><td>${esc(d.ip || '')}</td><td>${esc(d.mask || '')}</td><td>${esc(d.gateway || '')}</td><td>${esc(d.vlan || '')}</td></tr>`).join('')}</table>
+    ${S.devices.filter(d => d.category === 'network').map(sw => {
+      const ps = sw.ports.filter(p => pm.has(sw.id + '|' + p.id));
+      if (!ps.length) return '';
+      return `<h3>${esc(sw.name)} port map</h3><table><tr><th>Port</th><th>VLAN</th><th>Cable</th><th>Device</th><th>Device port</th></tr>${ps.map(p => {
+        const l = pm.get(sw.id + '|' + p.id), o = otherEnd(l, sw.id, p.id), od = devById(o.d);
+        return `<tr><td>${esc(p.name)}</td><td>${esc(p.vlan || '')}</td><td>${esc(l.cableId)}</td><td>${esc(od?.name)}</td><td>${esc(portOf(od, o.p)?.name)}</td></tr>`;
+      }).join('')}</table>`;
+    }).join('')}
+
+    <h2>6. Power</h2>
+    <table><tr><th>Site</th><th>Rack / position</th><th>Devices</th><th>Est. load</th></tr>
+    ${S.sites.map(s => {
+      const groups = {};
+      S.devices.filter(d => d.siteId === s.id).forEach(d => { const k = rackById(d.rackId)?.name || 'Non-rack'; (groups[k] = groups[k] || []).push(d); });
+      return Object.entries(groups).map(([k, ds]) => `<tr><td>${esc(s.name)}</td><td>${esc(k)}</td><td>${ds.length}</td><td>${ds.reduce((t, d) => t + (+d.powerW || 0), 0)} W</td></tr>`).join('');
+    }).join('')}</table>
+
+    ${issues.length ? `<h2>7. Open items</h2><ul>${issues.map(i => `<li>${i.level === 'error' ? '⛔' : '⚠'} ${esc(i.msg)}</li>`).join('')}</ul>` : ''}
+  </div>`;
+}
+
+/* ---- Library ---- */
+function viewLibrary() {
+  const byCat = {};
+  allTemplates().forEach(t => (byCat[t.category] = byCat[t.category] || []).push(t));
+  const isCustom = t => S.templates.some(x => x.id === t.id);
+  return `<div class="toolbar"><button class="primary" onclick="App.editTemplate()">+ New template</button>
+    <span class="muted">Templates are reusable device definitions (ports, rack units, power). Custom templates are saved with the project file.</span></div>
+    ${Object.entries(CATEGORIES).filter(([k]) => byCat[k]).map(([k, c]) => `<div class="card"><h3><span class="dot" style="background:${c.color}"></span>${esc(c.label)}</h3>
+      <table><tr><th>Model</th><th>Manufacturer</th><th>RU</th><th>Power</th><th>Ports</th><th></th></tr>
+      ${byCat[k].map(t => {
+        const summary = {};
+        t.ports.forEach(p => summary[p.conn] = (summary[p.conn] || 0) + 1);
+        return `<tr><td><b>${esc(t.model)}</b> ${isCustom(t) ? '<span class="pill">custom</span>' : ''}</td><td>${esc(t.mfr || '')}</td><td>${t.uHeight || '—'}</td><td>${t.powerW ? t.powerW + ' W' : ''}</td>
+        <td>${Object.entries(summary).map(([c, n]) => `<span class="pill"><span class="dot" style="background:${conn(c).color}"></span>${n}× ${esc(c)}</span>`).join(' ')}</td>
+        <td style="text-align:right;white-space:nowrap"><button class="sm" onclick="App.addFromLibrary('${t.id}')">Add to project</button>
+          ${isCustom(t) ? `<button class="sm" onclick="App.editTemplate('${t.id}')">Edit</button> <button class="sm danger" onclick="App.delTemplate('${t.id}')">✕</button>` : `<button class="sm" onclick="App.copyTemplate('${t.id}')">Copy &amp; edit</button>`}</td></tr>`;
+      }).join('')}</table></div>`).join('')}`;
+}
+
+/* ---------------- Modals ---------------- */
+function openModal(html) { $('#modalBody').innerHTML = html; $('#modal').classList.add('open'); const f = $('#modalBody input,#modalBody select'); if (f) f.focus(); }
+function closeModal() { $('#modal').classList.remove('open'); M = null; }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600); }
+
+function portEditorHtml() {
+  const connOpts = sel => Object.keys(CONNECTORS).map(c => `<option ${c === sel ? 'selected' : ''}>${c}</option>`).join('');
+  return `<div class="tablewrap" style="max-height:38vh"><table>
+    <tr><th>#</th><th>Port name</th><th>Connector</th><th>Direction</th><th>Signal / protocol</th><th>VLAN</th><th></th></tr>
+    ${M.data.ports.map((p, i) => `<tr><td class="muted">${i + 1}</td>
+      <td><input value="${esc(p.name)}" onchange="M.data.ports[${i}].name=this.value"></td>
+      <td><select onchange="M.data.ports[${i}].conn=this.value">${connOpts(p.conn)}</select></td>
+      <td><select onchange="M.data.ports[${i}].dir=this.value">${Object.entries(DIRS).map(([k, v]) => `<option value="${k}" ${k === p.dir ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+      <td><input list="protoList" value="${esc(p.proto || '')}" onchange="M.data.ports[${i}].proto=this.value"></td>
+      <td><input style="width:60px" value="${esc(p.vlan || '')}" onchange="M.data.ports[${i}].vlan=this.value"></td>
+      <td style="white-space:nowrap"><button class="sm" title="Move up" onclick="App.mPortMove(${i},-1)">↑</button><button class="sm danger" onclick="App.mPortDel(${i})">✕</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">No ports</td></tr>'}
+  </table></div>
+  <datalist id="protoList">${PROTOCOLS.filter(Boolean).map(p => `<option>${p}</option>`).join('')}</datalist>
+  <div class="toolbar" style="margin-top:8px">
+    <b>Add ports:</b> <input id="bpName" placeholder="Name prefix e.g. Input" style="width:150px">
+    <input id="bpCount" type="number" min="1" value="1" style="width:60px" title="How many">
+    <input id="bpStart" type="number" min="0" value="1" style="width:60px" title="Start number">
+    <select id="bpConn">${connOpts('RJ45')}</select>
+    <select id="bpDir">${Object.entries(DIRS).map(([k, v]) => `<option value="${k}" ${k === 'io' ? 'selected' : ''}>${v}</option>`).join('')}</select>
+    <input id="bpProto" list="protoList" placeholder="Protocol" style="width:110px">
+    <button onclick="App.mPortAdd()">+ Add</button>
+  </div>`;
+}
+function deviceModalHtml() {
+  const d = M.data, isT = M.kind === 'template';
+  const f = (k, label, type = 'text', extra = '') => `<label>${label}<input type="${type}" value="${esc(d[k] ?? '')}" ${extra} onchange="M.data['${k}']=${type === 'number' ? '+this.value' : 'this.value'}"></label>`;
+  const racks = S.racks.filter(r => r.siteId === d.siteId);
+  return `<h2>${isT ? (M.isNew ? 'New template' : 'Edit template') : (M.isNew ? 'New device' : 'Edit device: ' + esc(d.name))}</h2>
+  <div class="form">
+    ${isT ? f('short', 'Short name / prefix (e.g. SW)') : f('name', 'Device name / tag')}
+    ${f('model', 'Model')}${f('mfr', 'Manufacturer')}
+    <label>Category<select onchange="M.data.category=this.value">${Object.entries(CATEGORIES).map(([k, c]) => `<option value="${k}" ${k === d.category ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>
+    ${f('uHeight', 'Rack units (0 = not rack-mount)', 'number', 'min="0" max="20"')}${f('powerW', 'Power draw (W)', 'number', 'min="0"')}
+    ${isT ? '' : `
+    <label>Site<select onchange="M.data.siteId=this.value;M.data.rackId='';App.mRefresh()"><option value="">(none)</option>${siteOptions(d.siteId)}</select></label>
+    <label>Rack<select onchange="M.data.rackId=this.value;App.mRefresh()"><option value="">(not racked)</option>${racks.map(r => `<option value="${r.id}" ${r.id === d.rackId ? 'selected' : ''}>${esc(r.name)} (${r.heightU}U)</option>`).join('')}</select></label>
+    ${d.rackId ? f('uPos', 'Bottom U position (blank = auto)', 'number', 'min="1"') : f('location', 'Position (e.g. Stage left, FOH, Ceiling)')}
+    ${f('ip', 'IP address')}${f('vlan', 'VLAN')}${f('hostname', 'Hostname')}${f('serial', 'Serial / asset no.')}
+    <label class="full">Notes<textarea onchange="M.data.notes=this.value">${esc(d.notes || '')}</textarea></label>`}
+  </div>
+  <h3 style="margin:14px 0 6px">Ports (${d.ports.length})</h3>
+  ${portEditorHtml()}
+  <div class="actions">
+    ${!isT && !M.isNew ? `<button class="danger" onclick="App.delDevice('${d.id}')">Delete device</button><button onclick="App.saveAsTemplate()">Save as template</button>` : ''}
+    <span class="spacer"></span><button onclick="App.closeModal()">Cancel</button><button class="primary" onclick="App.mSave()">Save</button>
+  </div>`;
+}
+
+/* ---------------- CSV / files ---------------- */
+function download(name, text, type = 'text/plain') {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const toCSV = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+const fileBase = () => (S.project.name || 'project').replace(/[^\w\-]+/g, '_');
+
+/* ---------------- Actions (exposed) ---------------- */
+const App = {
+  tab(t) { UI.tab = t; render(); window.scrollTo(0, 0); },
+  setUI(k, v, keepFocus) {
+    UI[k] = v;
+    if (keepFocus) { const el = document.activeElement, pos = el && el.selectionStart; render(); const n = document.querySelector(`[oninput*="'${k}'"]`); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } }
+    else render();
+  },
+  closeModal,
+  undo() { if (!undoStack.length) return toast('Nothing to undo'); S = normalize(JSON.parse(undoStack.pop())); save(); render(); toast('Undone'); },
+  setProj(k, v) { snap(); S.project[k] = v; commit(); },
+
+  /* Sites & racks */
+  editSite(id) {
+    const s = id ? siteById(id) : {name:'', location:''};
+    openModal(`<h2>${id ? 'Edit site' : 'New site'}</h2><div class="form">
+      <label>Site name<input id="sName" value="${esc(s.name)}" placeholder="e.g. Main Auditorium"></label>
+      <label>Address / description<input id="sLoc" value="${esc(s.location || '')}" placeholder="e.g. Level 2, Building A"></label></div>
+      <div class="actions">${id ? `<button class="danger" onclick="App.delSite('${id}')">Delete site</button>` : ''}<span class="spacer"></span>
+      <button onclick="App.closeModal()">Cancel</button><button class="primary" onclick="App.saveSite(${id ? `'${id}'` : 'null'})">Save</button></div>`);
+  },
+  saveSite(id) {
+    const name = $('#sName').value.trim(); if (!name) return toast('Name required');
+    snap();
+    if (id) Object.assign(siteById(id), {name, location:$('#sLoc').value});
+    else { const s = {id:uid(), name, location:$('#sLoc').value}; S.sites.push(s); UI.site = s.id; }
+    closeModal(); commit();
+  },
+  delSite(id) {
+    const n = S.devices.filter(d => d.siteId === id).length;
+    if (!confirm(`Delete this site and its racks?${n ? ` ${n} devices will be kept but unassigned.` : ''}`)) return;
+    snap();
+    const rackIds = S.racks.filter(r => r.siteId === id).map(r => r.id);
+    S.racks = S.racks.filter(r => r.siteId !== id); S.sites = S.sites.filter(s => s.id !== id);
+    S.devices.forEach(d => { if (d.siteId === id) d.siteId = ''; if (rackIds.includes(d.rackId)) { d.rackId = ''; d.uPos = 0; } });
+    closeModal(); commit();
+  },
+  editRack(id, siteId) {
+    if (!S.sites.length) return toast('Create a site first');
+    const r = id ? rackById(id) : {name:'Rack ' + pad(S.racks.length + 1), heightU:42, siteId:siteId || UI.site || S.sites[0].id, location:'', maxW:''};
+    openModal(`<h2>${id ? 'Edit rack' : 'New rack'}</h2><div class="form">
+      <label>Rack name<input id="rName" value="${esc(r.name)}"></label>
+      <label>Height (U)<input id="rU" type="number" min="1" max="60" value="${r.heightU}"></label>
+      <label>Site<select id="rSite">${siteOptions(r.siteId)}</select></label>
+      <label>Location in site<input id="rLoc" value="${esc(r.location || '')}" placeholder="e.g. Comms room / SR"></label>
+      <label>Power budget (W, optional)<input id="rW" type="number" min="0" value="${esc(r.maxW || '')}"></label></div>
+      <div class="actions">${id ? `<button class="danger" onclick="App.delRack('${id}')">Delete rack</button>` : ''}<span class="spacer"></span>
+      <button onclick="App.closeModal()">Cancel</button><button class="primary" onclick="App.saveRack(${id ? `'${id}'` : 'null'})">Save</button></div>`);
+  },
+  saveRack(id) {
+    const v = {name:$('#rName').value.trim() || 'Rack', heightU:Math.max(1, +$('#rU').value || 42), siteId:$('#rSite').value, location:$('#rLoc').value, maxW:+$('#rW').value || 0};
+    snap();
+    if (id) {
+      Object.assign(rackById(id), v);
+      S.devices.filter(d => d.rackId === id).forEach(d => d.siteId = v.siteId);
+    } else S.racks.push({id:uid(), ...v});
+    closeModal(); commit();
+  },
+  delRack(id) {
+    if (!confirm('Delete rack? Its devices will become unracked.')) return;
+    snap(); S.racks = S.racks.filter(r => r.id !== id);
+    S.devices.forEach(d => { if (d.rackId === id) { d.rackId = ''; d.uPos = 0; } });
+    closeModal(); commit();
+  },
+  goRack(siteId) { UI.site = siteId; App.tab('racks'); },
+
+  /* Drag & drop racking */
+  dragStart(e, id) { UI.drag = id; e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; setTimeout(() => document.body.classList.add('dragging'), 0); },
+  dragEnd() { document.body.classList.remove('dragging'); document.querySelectorAll('.over').forEach(x => x.classList.remove('over')); },
+  dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('over'); },
+  dropU(e, rackId, topU) {
+    e.preventDefault(); App.dragEnd();
+    const d = devById(e.dataTransfer.getData('text/plain') || UI.drag); if (!d) return;
+    const h = Math.max(1, d.uHeight || 1), bottom = topU - h + 1;
+    if (!fits(rackId, bottom, h, d.id)) return toast(`${d.name} (${h}U) doesn't fit at U${topU} — space occupied or out of range`);
+    snap(); d.rackId = rackId; d.uPos = bottom; d.siteId = rackById(rackId).siteId; commit();
+  },
+  dropTray(e) { e.preventDefault(); App.dragEnd(); App.unrack(e.dataTransfer.getData('text/plain') || UI.drag); },
+  unrack(id) { const d = devById(id); if (!d || !d.rackId) return; snap(); d.rackId = ''; d.uPos = 0; commit(); },
+
+  /* Devices */
+  addFromLibrary(tid) {
+    const tpls = allTemplates();
+    const t = tpls.find(x => x.id === tid) || tpls[0];
+    const site = UI.site && siteById(UI.site) ? UI.site : (S.sites[0]?.id || '');
+    openModal(`<h2>Add equipment</h2><div class="form">
+      <label class="full">Template<select id="aT" onchange="App.addTplChange()">${Object.entries(CATEGORIES).map(([k, c]) => {
+        const l = tpls.filter(x => x.category === k); return l.length ? `<optgroup label="${esc(c.label)}">${l.map(x => `<option value="${x.id}" ${x.id === t.id ? 'selected' : ''}>${esc(x.model)}${x.mfr && x.mfr !== 'Generic' ? ' — ' + esc(x.mfr) : ''}${x.uHeight ? ` (${x.uHeight}U)` : ''}</option>`).join('')}</optgroup>` : '';
+      }).join('')}</select></label>
+      <label>Name prefix<input id="aName" value="${esc(t.short || 'DEV')}"></label>
+      <label>Quantity<input id="aQty" type="number" min="1" max="200" value="1"></label>
+      <label>Start number<input id="aStart" type="number" min="0" value="${nextNum(t.short || 'DEV')}"></label>
+      <label>Site<select id="aSite" onchange="App.addTplChange()"><option value="">(none)</option>${siteOptions(site)}</select></label>
+      <label>Rack (auto-place)<select id="aRack"></select></label>
+      <label>Position (non-rack)<input id="aLoc" placeholder="e.g. Stage left"></label>
+    </div><p class="muted" id="aInfo"></p>
+    <div class="actions"><button onclick="App.closeModal()">Cancel</button><button class="primary" onclick="App.addDevices()">Add</button></div>`);
+    App.addTplChange(true);
+  },
+  addTplChange(first) {
+    const t = allTemplates().find(x => x.id === $('#aT').value);
+    if (!first) { $('#aName').value = t.short || 'DEV'; $('#aStart').value = nextNum(t.short || 'DEV'); }
+    const racks = S.racks.filter(r => r.siteId === $('#aSite').value);
+    $('#aRack').innerHTML = '<option value="">(don\'t rack)</option>' + (t.uHeight > 0 ? racks.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('') : '');
+    const sum = {}; t.ports.forEach(p => sum[p.conn] = (sum[p.conn] || 0) + 1);
+    $('#aInfo').textContent = `${t.uHeight ? t.uHeight + 'U rack-mount' : 'Not rack-mount'} · ${t.powerW || 0} W · Ports: ` + (Object.entries(sum).map(([c, n]) => `${n}× ${c}`).join(', ') || 'none');
+  },
+  addDevices() {
+    const t = allTemplates().find(x => x.id === $('#aT').value);
+    const qty = Math.max(1, Math.min(200, +$('#aQty').value || 1)), start = +$('#aStart').value || 1, prefix = $('#aName').value.trim() || 'DEV';
+    const siteId = $('#aSite').value, rackId = $('#aRack').value, loc = $('#aLoc').value;
+    snap();
+    let failed = 0;
+    for (let i = 0; i < qty; i++) {
+      const d = instantiate(t, `${prefix}-${pad(start + i)}`, siteId);
+      d.location = loc;
+      if (rackId) { const u = firstFreeU(rackId, t.uHeight); if (u) { d.rackId = rackId; d.uPos = u; } else failed++; }
+      S.devices.push(d);
+    }
+    closeModal(); commit();
+    toast(`Added ${qty} × ${t.model}` + (failed ? ` — ${failed} didn't fit in the rack (left unracked)` : ''));
+  },
+  editDevice(id) {
+    const d = id ? devById(id) : {id:uid(), name:'DEV-' + pad(nextNum('DEV')), model:'Custom device', mfr:'', category:'other', uHeight:1, powerW:0, siteId:UI.site || S.sites[0]?.id || '', rackId:'', uPos:0, ports:[]};
+    M = {kind:'device', isNew:!id, data:clone(d)};
+    openModal(deviceModalHtml());
+  },
+  editTemplate(id) {
+    const t = id ? S.templates.find(x => x.id === id) : {id:'c-' + uid(), short:'DEV', model:'New template', mfr:'', category:'other', uHeight:1, powerW:0, ports:[]};
+    M = {kind:'template', isNew:!id, data:clone(t)};
+    M.data.ports.forEach(p => p.id = p.id || uid());
+    openModal(deviceModalHtml());
+  },
+  copyTemplate(id) {
+    const t = clone(allTemplates().find(x => x.id === id));
+    t.id = 'c-' + uid(); t.model += ' (copy)'; t.ports.forEach(p => p.id = uid());
+    M = {kind:'template', isNew:true, data:t};
+    openModal(deviceModalHtml());
+  },
+  delTemplate(id) { if (!confirm('Delete this template? Existing devices are not affected.')) return; snap(); S.templates = S.templates.filter(t => t.id !== id); commit(); },
+  mRefresh() { const st = $('#modalBody .tablewrap')?.scrollTop; $('#modalBody').innerHTML = deviceModalHtml(); if (st) $('#modalBody .tablewrap').scrollTop = st; },
+  mPortAdd() {
+    const name = $('#bpName').value.trim() || 'Port', n = Math.max(1, Math.min(256, +$('#bpCount').value || 1)), start = +$('#bpStart').value;
+    for (let i = 0; i < n; i++) M.data.ports.push({id:uid(), name:n > 1 || $('#bpStart').value !== '1' ? `${name} ${start + i}` : name, conn:$('#bpConn').value, dir:$('#bpDir').value, proto:$('#bpProto').value});
+    App.mRefresh();
+  },
+  mPortDel(i) { M.data.ports.splice(i, 1); App.mRefresh(); },
+  mPortMove(i, d) { const a = M.data.ports; if (i + d < 0 || i + d >= a.length) return; [a[i], a[i + d]] = [a[i + d], a[i]]; App.mRefresh(); },
+  mSave() {
+    const d = M.data;
+    d.uHeight = Math.max(0, +d.uHeight || 0); d.powerW = Math.max(0, +d.powerW || 0);
+    if (M.kind === 'template') {
+      snap();
+      const i = S.templates.findIndex(t => t.id === d.id);
+      if (i >= 0) S.templates[i] = d; else S.templates.push(d);
+      closeModal(); commit(); return toast('Template saved');
+    }
+    if (!d.name.trim()) return toast('Name required');
+    if (S.devices.some(x => x.id !== d.id && x.name.trim().toLowerCase() === d.name.trim().toLowerCase()) && !confirm(`Another device is already called "${d.name}". Save anyway?`)) return;
+    if (d.rackId && d.uHeight > 0) {
+      d.uPos = +d.uPos || 0;
+      if (!d.uPos) d.uPos = firstFreeU(d.rackId, d.uHeight, d.id);
+      if (!d.uPos || !fits(d.rackId, d.uPos, d.uHeight, d.id)) return toast('Device does not fit at that rack position');
+    } else { d.rackId = ''; d.uPos = 0; }
+    const keep = new Set(d.ports.map(p => p.id));
+    const orphan = S.links.filter(l => (l.a.d === d.id && !keep.has(l.a.p)) || (l.b.d === d.id && !keep.has(l.b.p)));
+    if (orphan.length && !confirm(`${orphan.length} cable(s) are patched to ports you removed and will be deleted. Continue?`)) return;
+    snap();
+    S.links = S.links.filter(l => !orphan.includes(l));
+    const i = S.devices.findIndex(x => x.id === d.id);
+    if (i >= 0) S.devices[i] = d; else S.devices.push(d);
+    closeModal(); commit();
+  },
+  saveAsTemplate() {
+    const d = M.data;
+    const t = {id:'c-' + uid(), short:(d.name.split(/[-\s]/)[0] || 'DEV'), model:d.model, mfr:d.mfr, category:d.category, uHeight:+d.uHeight || 0, powerW:+d.powerW || 0,
+      ports:d.ports.map(p => ({name:p.name, conn:p.conn, dir:p.dir, proto:p.proto, vlan:p.vlan}))};
+    snap(); S.templates.push(t); save(); toast(`Saved “${t.model}” to library`);
+  },
+  dupDevice(id) {
+    const d = clone(devById(id));
+    d.id = uid(); d.ports.forEach(p => p.id = uid()); d.ip = ''; d.mac = ''; d.serial = '';
+    const m = /^(.*?)(\d+)$/.exec(d.name);
+    d.name = m ? `${m[1]}${pad(nextNum(m[1].replace(/-$/, '')), m[2].length)}` : d.name + ' copy';
+    if (d.rackId) { d.uPos = firstFreeU(d.rackId, d.uHeight); if (!d.uPos) d.rackId = ''; }
+    snap(); S.devices.push(d); commit(); toast('Duplicated as ' + d.name);
+  },
+  delDevice(id) {
+    const d = devById(id); const n = S.links.filter(l => l.a.d === id || l.b.d === id).length;
+    if (!confirm(`Delete ${d.name}?${n ? ` ${n} cable(s) will be removed.` : ''}`)) return;
+    snap(); S.devices = S.devices.filter(x => x.id !== id); S.links = S.links.filter(l => l.a.d !== id && l.b.d !== id);
+    if (UI.patchA.d === id) UI.patchA = {d:'', p:''}; if (UI.patchB.d === id) UI.patchB = {d:'', p:''};
+    closeModal(); commit();
+  },
+  setDevField(id, k, v) {
+    snap(); devById(id)[k] = v.trim(); save();
+    if (k === 'ip') {
+      const cnt = {}; S.devices.forEach(d => { if (d.ip) cnt[d.ip] = (cnt[d.ip] || 0) + 1; });
+      document.querySelectorAll('input[data-ipfield="1"]').forEach(inp => inp.classList.toggle('err', cnt[inp.value.trim()] > 1));
+    }
+  },
+  setPortField(did, pid, k, v) { snap(); portOf(devById(did), pid)[k] = v.trim(); save(); },
+  autoIP() {
+    const base = $('#ipBase').value.trim(), mask = $('#ipMask').value.trim();
+    const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(base); if (!m) return toast('Base IP looks invalid');
+    const used = new Set(S.devices.map(d => d.ip).filter(Boolean));
+    let host = +m[4], n = 0;
+    snap();
+    for (const d of sortedDevices(S.devices.filter(d => !d.ip && (!UI.netSite || d.siteId === UI.netSite) && d.ports.some(p => conn(p.conn).group === 'eth')))) {
+      while (used.has(`${m[1]}.${m[2]}.${m[3]}.${host}`) && host < 255) host++;
+      if (host > 254) break;
+      d.ip = `${m[1]}.${m[2]}.${m[3]}.${host}`; d.mask = d.mask || mask; used.add(d.ip); n++; host++;
+    }
+    commit(); toast(`Assigned ${n} IP address(es)`);
+  },
+
+  /* Patching */
+  patchFrom(id) { UI.patchA = {d:id, p:''}; App.tab('patch'); },
+  pickDev(side, id) { UI['patch' + side] = {d:id, p:''}; render(); },
+  pickPort(side, pid) {
+    const s = UI['patch' + side];
+    s.p = s.p === pid ? '' : pid;
+    if (side === 'A') { UI.link.cable = ''; }
+    render();
+  },
+  connect() {
+    const A = UI.patchA, B = UI.patchB;
+    const da = devById(A.d), db = devById(B.d), pa = portOf(da, A.p);
+    const n = Math.max(1, UI.seq || 1);
+    const pm = portMap();
+    const run = (d, startId, group, excl) => {
+      const idx = d.ports.findIndex(p => p.id === startId), out = [];
+      for (let i = idx; i < d.ports.length && out.length < n; i++) {
+        const p = d.ports[i];
+        if (conn(p.conn).group !== group || pm.has(d.id + '|' + p.id) || excl.has(p.id)) continue;
+        out.push(p);
+      }
+      return out;
+    };
+    const g = conn(pa.conn).group;
+    const ra = run(da, A.p, g, new Set());
+    const rb = run(db, B.p, g, da.id === db.id ? new Set(ra.map(p => p.id)) : new Set());
+    const count = Math.min(ra.length, rb.length);
+    snap();
+    const made = [];
+    for (let i = 0; i < count; i++) {
+      const a = {d:da.id, p:ra[i].id}, b = {d:db.id, p:rb[i].id};
+      if (checkLink(a, b).errors.length) continue;
+      const cdef = conn(ra[i].conn);
+      const l = {id:uid(), cableId:nextCableId(cdef.prefix), a, b, cable:UI.link.cable || cdef.cable, length:UI.link.length, color:UI.link.color, notes:''};
+      S.links.push(l); made.push(l.cableId);
+    }
+    UI.patchA.p = ''; UI.patchB.p = '';
+    commit();
+    toast(made.length ? `Patched ${made.length}: ${made[0]}${made.length > 1 ? ' … ' + made[made.length - 1] : ''}` + (made.length < n ? ` (only ${made.length} free pairs available)` : '') : 'Nothing patched');
+  },
+  editLink(id) {
+    const l = S.links.find(x => x.id === id);
+    openModal(`<h2>Cable ${esc(l.cableId)}</h2>
+      <p>${esc(endText(l.a))} ⟶ ${esc(endText(l.b))}</p><div class="form">
+      <label>Cable ID<input id="lId" value="${esc(l.cableId)}"></label>
+      <label>Cable type<input id="lCable" value="${esc(l.cable)}"></label>
+      <label>Length (m)<input id="lLen" type="number" min="0" step="0.5" value="${esc(l.length || '')}"></label>
+      <label>Colour<select id="lCol">${CABLE_COLORS.map(c => `<option ${c === l.color ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="full">Notes / route<input id="lNotes" value="${esc(l.notes || '')}" placeholder="e.g. via floor box FB-3, tray T2"></label></div>
+      <div class="actions"><button onclick="App.swapLink('${id}')">⇄ Swap ends</button><button class="danger" onclick="App.delLink('${id}')">Disconnect</button><span class="spacer"></span>
+      <button onclick="App.closeModal()">Cancel</button><button class="primary" onclick="App.saveLink('${id}')">Save</button></div>`);
+  },
+  saveLink(id) {
+    const l = S.links.find(x => x.id === id), cid = $('#lId').value.trim();
+    if (!cid) return toast('Cable ID required');
+    if (S.links.some(x => x.id !== id && x.cableId === cid) && !confirm(`Cable ID ${cid} already exists. Use anyway?`)) return;
+    snap(); Object.assign(l, {cableId:cid, cable:$('#lCable').value, length:$('#lLen').value, color:$('#lCol').value, notes:$('#lNotes').value});
+    closeModal(); commit();
+  },
+  swapLink(id) { const l = S.links.find(x => x.id === id); snap(); [l.a, l.b] = [l.b, l.a]; closeModal(); commit(); },
+  delLink(id) { snap(); S.links = S.links.filter(l => l.id !== id); closeModal(); commit(); toast('Disconnected'); },
+  sortCables(k) { UI.cableSort = {key:k, dir:UI.cableSort.key === k ? -UI.cableSort.dir : 1}; render(); },
+  renumber() {
+    if (!confirm('Renumber all cable IDs sequentially per type prefix (NET-001, AUD-001…), ordered by source device & port? Printed labels will no longer match.')) return;
+    snap();
+    const counters = {};
+    const order = [...S.links].sort((x, y) => {
+      const dx = devById(x.a.d), dy = devById(y.a.d);
+      return (dx?.name || '').localeCompare(dy?.name || '', undefined, {numeric:true}) || (dx && dy ? dx.ports.findIndex(p => p.id === x.a.p) - dy.ports.findIndex(p => p.id === y.a.p) : 0);
+    });
+    for (const l of order) {
+      const pre = conn(portOf(devById(l.a.d), l.a.p)?.conn).prefix;
+      counters[pre] = (counters[pre] || 0) + 1; l.cableId = `${pre}-${pad(counters[pre], 3)}`;
+    }
+    commit(); toast('Cable IDs renumbered');
+  },
+
+  /* Files */
+  exportJSON() { download(`${fileBase()}.patch.json`, JSON.stringify(S, null, 1), 'application/json'); toast('Project file downloaded'); },
+  importJSON(input) {
+    const f = input.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try { const d = normalize(JSON.parse(r.result)); snap(); S = d; UI.site = ''; UI.patchA = {d:'', p:''}; UI.patchB = {d:'', p:''}; commit(); toast('Opened ' + f.name); }
+      catch (e) { alert('Could not read project file: ' + e.message); }
+      input.value = '';
+    };
+    r.readAsText(f);
+  },
+  exportCSV(kind) {
+    let rows;
+    if (kind === 'cables') rows = [['Cable ID', 'Cable type', 'Length (m)', 'Colour', 'From device', 'From port', 'From location', 'To device', 'To port', 'To location', 'Signal', 'Notes'],
+      ...cableRows().sort((a, b) => a.cableId.localeCompare(b.cableId, undefined, {numeric:true})).map(r => [r.cableId, r.cable, r.length, r.color, r.fromDev, r.fromPort, r.fromLoc, r.toDev, r.toPort, r.toLoc, r.proto, r.notes])];
+    else if (kind === 'ip') rows = [['Device', 'Model', 'Location', 'Hostname', 'IP', 'Subnet', 'Gateway', 'VLAN', 'MAC'],
+      ...sortedDevices().filter(d => d.ip || d.vlan || d.hostname).map(d => [d.name, d.model, devLocation(d), d.hostname, d.ip, d.mask, d.gateway, d.vlan, d.mac])];
+    else rows = [['Name', 'Manufacturer', 'Model', 'Category', 'Site', 'Rack', 'U', 'RU', 'Position', 'IP', 'VLAN', 'Power (W)', 'Serial', 'Notes'],
+      ...sortedDevices().map(d => [d.name, d.mfr, d.model, catOf(d.category).label, siteById(d.siteId)?.name, rackById(d.rackId)?.name, d.uPos || '', d.uHeight, d.location, d.ip, d.vlan, d.powerW, d.serial, d.notes])];
+    download(`${fileBase()}_${kind}.csv`, '﻿' + toCSV(rows), 'text/csv');
+  },
+  exportSVG() { const svg = $('#flowSvg'); if (svg) download(`${fileBase()}_signal-flow.svg`, svg.outerHTML, 'image/svg+xml'); },
+  loadDemo() { if (!confirm('Replace the current project with the demo? (You can Undo.)')) return; snap(); S = demoProject(); UI.site = ''; commit(); },
+  newProject() { if (!confirm('Start a new blank project? Save the current one first if needed. (You can Undo.)')) return; snap(); S = blankProject(); UI.site = ''; UI.patchA = {d:'', p:''}; UI.patchB = {d:'', p:''}; commit(); },
+};
+window.App = App; window.UI = UI;
+
+function nextNum(prefix) {
+  let max = 0;
+  const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-?(\\d+)$', 'i');
+  S.devices.forEach(d => { const m = re.exec(d.name); if (m) max = Math.max(max, +m[1]); });
+  return max + 1;
+}
+function instantiate(t, name, siteId) {
+  return {id:uid(), name, model:t.model, mfr:t.mfr || '', category:t.category, uHeight:t.uHeight || 0, powerW:t.powerW || 0,
+    siteId:siteId || '', rackId:'', uPos:0, location:'', ip:'', vlan:'', hostname:'', notes:'',
+    ports:t.ports.map(p => ({id:uid(), name:p.name, conn:p.conn, dir:p.dir, proto:p.proto || '', vlan:p.vlan || ''}))};
+}
+
+/* ---------------- Demo project ---------------- */
+function demoProject() {
+  const prev = S;
+  S = blankProject();
+  S.project = {name:'Annual Conference 2026', client:'Example Events Pty Ltd', venue:'Harbour Convention Centre', date:'2026-12-03', engineer:'AV Lead', contact:'+61 400 000 000', revision:'B',
+    notes:'Dante network on VLAN 10 (primary) / VLAN 20 (secondary). Video over IP on VLAN 30. Control on VLAN 40.\nAll cables to be labelled at both ends with the cable ID.'};
+  const site = (name, location) => { const s = {id:uid(), name, location}; S.sites.push(s); return s.id; };
+  const rack = (siteId, name, heightU, location, maxW) => { const r = {id:uid(), siteId, name, heightU, location, maxW}; S.racks.push(r); return r.id; };
+  const T = id => BUILTIN_TEMPLATES.find(t => t.id === id);
+  const D = (tid, name, siteId, rackId, extra = {}) => {
+    const d = instantiate(T(tid), name, siteId);
+    if (rackId) { d.rackId = rackId; d.uPos = firstFreeU(rackId, d.uHeight); }
+    Object.assign(d, extra); S.devices.push(d); return d;
+  };
+  const L = (da, pa, db, pb, len = '', extra = {}) => {
+    const p1 = da.ports.find(p => p.name === pa), p2 = db.ports.find(p => p.name === pb);
+    if (!p1 || !p2) { console.warn('demo link failed', da.name, pa, db.name, pb); return; }
+    const c = conn(p1.conn);
+    S.links.push({id:uid(), cableId:nextCableId(c.prefix), a:{d:da.id, p:p1.id}, b:{d:db.id, p:p2.id}, cable:c.cable, length:String(len), color:'', notes:'', ...extra});
+  };
+  const hall = site('Main Hall', 'Ground floor, Hall A'), foh = site('FOH Position', 'Rear of Main Hall'), br = site('Breakout Room 2', 'Level 1');
+  const r1 = rack(hall, 'AV-R01', 42, 'Stage-right wing', 6000), r2 = rack(hall, 'AV-R02', 24, 'Stage-left wing', 4000), r3 = rack(foh, 'FOH-R01', 12, 'FOH riser', 2000), r4 = rack(br, 'BR2-R01', 12, 'Joinery cupboard', 1500);
+  const net = {mask:'255.255.255.0'};
+  const sw1 = D('t-sw24', 'SW-01', hall, r1, {ip:'10.10.0.2', vlan:'1', hostname:'sw-core-pri', ...net});
+  const sw2 = D('t-sw24', 'SW-02', hall, r1, {ip:'10.10.0.3', vlan:'1', hostname:'sw-core-sec', ...net});
+  const pp1 = D('t-pp24', 'PP-01', hall, r1);
+  const fpp1 = D('t-fpp12', 'FPP-01', hall, r1);
+  const pdu1 = D('t-pdu', 'PDU-01', hall, r1, {ip:'10.10.0.20', ...net});
+  const amp1 = D('t-amp4', 'AMP-01', hall, r1, {ip:'10.10.10.31', vlan:'10', ...net});
+  const amp2 = D('t-amp4', 'AMP-02', hall, r1, {ip:'10.10.10.32', vlan:'10', ...net});
+  const rx1 = D('t-rx2', 'RX-01', hall, r1, {ip:'10.10.10.41', vlan:'10', ...net});
+  const rx2 = D('t-rx2', 'RX-02', hall, r1, {ip:'10.10.10.42', vlan:'10', ...net});
+  const rtr = D('t-rtr', 'RTR-01', hall, r2, {ip:'10.10.40.11', vlan:'40', ...net});
+  const pc = D('t-pc', 'PC-01', hall, r2, {ip:'10.10.40.21', vlan:'40', ...net});
+  const ctl = D('t-ctl', 'CTL-01', hall, r2, {ip:'10.10.40.2', vlan:'40', ...net});
+  const pdu2 = D('t-pdu', 'PDU-02', hall, r2, {ip:'10.10.0.21', ...net});
+  const sb1 = D('t-sb168', 'SB-01', hall, null, {location:'Downstage centre', ip:'10.10.10.51', vlan:'10', ...net});
+  const spkL = D('t-spk', 'SPK-01', hall, null, {location:'Main L (flown)'});
+  const spkR = D('t-spk', 'SPK-02', hall, null, {location:'Main R (flown)'});
+  const sub = D('t-spk', 'SPK-03', hall, null, {location:'Sub centre', model:'Passive Subwoofer'});
+  const fill = D('t-spk', 'SPK-04', hall, null, {location:'Front fill'});
+  const cam1 = D('t-ptz', 'CAM-01', hall, null, {location:'Rear truss centre', ip:'10.10.30.11', vlan:'30', ...net});
+  const cam2 = D('t-ptz', 'CAM-02', hall, null, {location:'Stage left wide', ip:'10.10.30.12', vlan:'30', ...net});
+  const proj = D('t-proj', 'PROJ-01', hall, null, {location:'Rear projection', ip:'10.10.40.31', vlan:'40', ...net});
+  const lcd1 = D('t-disp', 'LCD-01', hall, null, {location:'DSM confidence monitor', ip:'10.10.40.32', vlan:'40', ...net});
+  const desk = D('t-mix', 'DESK-01', foh, null, {location:'FOH riser', ip:'10.10.10.11', vlan:'10', ...net});
+  const sw3 = D('t-sw12', 'SW-03', foh, r3, {ip:'10.10.0.4', ...net});
+  const vsw = D('t-vsw', 'VSW-01', foh, r3, {ip:'10.10.40.12', vlan:'40', ...net});
+  const rec = D('t-rec', 'REC-01', foh, r3, {ip:'10.10.40.13', vlan:'40', ...net});
+  const pdu3 = D('t-pdu', 'PDU-03', foh, r3);
+  const tp = D('t-tp', 'TP-01', foh, null, {location:'FOH desk', ip:'10.10.40.41', vlan:'40', ...net});
+  const sw4 = D('t-sw12', 'SW-04', br, r4, {ip:'10.10.0.5', ...net});
+  const dsp = D('t-dsp', 'DSP-01', br, r4, {ip:'10.10.10.61', vlan:'10', ...net});
+  const dec = D('t-dec', 'RX-03', br, null, {location:'Behind display', ip:'10.10.30.21', vlan:'30', ...net});
+  const enc = D('t-enc', 'TX-01', br, null, {location:'Lectern', ip:'10.10.30.22', vlan:'30', ...net});
+  const lcd2 = D('t-disp', 'LCD-02', br, null, {location:'Front wall 86"', ip:'10.10.40.33', vlan:'40', ...net});
+  const cmic = D('t-ceil', 'CMIC-01', br, null, {location:'Ceiling over table', ip:'10.10.10.62', vlan:'10', ...net});
+  const spkB = D('t-aspk', 'SPK-05', br, null, {location:'Ceiling L', ip:'10.10.10.63', vlan:'10', ...net});
+  // VLAN access ports on core switches
+  sw1.ports.slice(0, 12).forEach(p => p.vlan = '10'); sw1.ports.slice(12, 18).forEach(p => p.vlan = '30'); sw1.ports.slice(18, 24).forEach(p => p.vlan = '40');
+  sw2.ports.slice(0, 12).forEach(p => p.vlan = '20');
+  // Core / trunks
+  L(sw1, 'SFP 25', fpp1, 'R 1', 1, {notes:'Trunk to FOH'}); L(sw1, 'SFP 26', fpp1, 'R 2', 1, {notes:'Trunk to Breakout 2'});
+  L(fpp1, 'F 1', sw3, 'SFP 9', 60, {cable:'LC-LC OS2 Duplex', notes:'Tie-line via floor duct'}); L(fpp1, 'F 2', sw4, 'SFP 9', 85, {cable:'LC-LC OS2 Duplex', notes:'Riser tie-line'});
+  L(sw2, 'SFP 25', sw1, 'SFP 27', 0.5, {notes:'ISL'});
+  // Dante
+  L(sb1, 'Dante Pri', sw1, 'Port 1', 30, {color:'Blue'}); L(sb1, 'Dante Sec', sw2, 'Port 1', 30, {color:'Red'});
+  L(amp1, 'Dante Pri', sw1, 'Port 2', 1, {color:'Blue'}); L(amp1, 'Dante Sec', sw2, 'Port 2', 1, {color:'Red'});
+  L(amp2, 'Dante Pri', sw1, 'Port 3', 1, {color:'Blue'}); L(amp2, 'Dante Sec', sw2, 'Port 3', 1, {color:'Red'});
+  L(rx1, 'Dante', sw1, 'Port 4', 1, {color:'Blue'}); L(rx2, 'Dante', sw1, 'Port 5', 1, {color:'Blue'});
+  L(desk, 'Dante Pri', sw3, 'Port 1', 3, {color:'Blue'}); L(desk, 'Dante Sec', sw3, 'Port 2', 3, {color:'Red', notes:'TODO: move to secondary network'});
+  pc.ports.find(p => p.name === 'Dante VSC').vlan = '10';
+  L(pc, 'Dante VSC', sw1, 'Port 6', 1, {color:'Blue'});
+  // Video / control IP
+  L(cam1, 'LAN/PoE+', sw1, 'Port 13', 45); L(cam2, 'LAN/PoE+', sw1, 'Port 14', 30);
+  L(pc, 'LAN', sw1, 'Port 19', 1); L(ctl, 'LAN', sw1, 'Port 20', 1); L(rtr, 'Ethernet', sw1, 'Port 21', 1); L(proj, 'LAN', sw1, 'Port 22', 40); L(lcd1, 'LAN', sw1, 'Port 23', 15);
+  L(vsw, 'Ethernet', sw3, 'Port 3', 1); L(rec, 'LAN', sw3, 'Port 4', 1); L(tp, 'LAN/PoE', sw3, 'Port 5', 3);
+  L(dsp, 'Dante Pri', sw4, 'Port 1', 1); L(dsp, 'Control', sw4, 'Port 2', 1); L(cmic, 'Dante/PoE', sw4, 'Port 3', 12); L(spkB, 'Dante', sw4, 'Port 4', 10);
+  L(enc, 'LAN/PoE', sw4, 'Port 5', 15); L(dec, 'LAN/PoE', sw4, 'Port 6', 8); L(dec, 'HDMI Out', lcd2, 'HDMI 1', 2);
+  // Audio analog
+  for (let i = 1; i <= 2; i++) L(rx1, 'Out ' + i, sb1, 'In ' + i, 30, {notes:'Lectern / MC handhelds'});
+  L(amp1, 'Out 1', spkL, 'Input', 25); L(amp1, 'Out 2', spkR, 'Input', 25); L(amp1, 'Out 3', sub, 'Input', 20); L(amp2, 'Out 1', fill, 'Input', 15);
+  // SDI
+  L(cam1, 'SDI Out', rtr, 'In 1', 45); L(cam2, 'SDI Out', rtr, 'In 2', 30);
+  L(rtr, 'Out 1', vsw, 'SDI In 1', 60, {notes:'Via SDI tie-lines TL-1'}); L(rtr, 'Out 2', vsw, 'SDI In 2', 60, {notes:'Via SDI tie-lines TL-2'});
+  L(vsw, 'SDI Out 1', rec, 'SDI In', 1); L(vsw, 'SDI Out 2', proj, 'SDI In', 70, {notes:'Programme to projector'}); L(pc, 'HDMI Out 1', lcd1, 'HDMI 1', 15);
+  // Power
+  L(pdu1, 'Outlet 1', sw1, 'PSU', 1); L(pdu1, 'Outlet 2', sw2, 'PSU', 1); L(pdu1, 'Outlet 3', rx1, 'PSU', 1); L(pdu1, 'Outlet 4', rx2, 'PSU', 1);
+  L(pdu2, 'Outlet 1', rtr, 'PSU', 1); L(pdu2, 'Outlet 2', pc, 'PSU', 1); L(pdu2, 'Outlet 3', ctl, 'PSU', 1);
+  L(pdu3, 'Outlet 1', sw3, 'PSU', 1); L(pdu3, 'Outlet 2', vsw, 'PSU', 1); L(pdu3, 'Outlet 3', rec, 'PSU', 1); L(pdu3, 'Outlet 4', desk, 'PSU', 3);
+  const result = S;
+  S = prev;
+  return result;
+}
+
+/* ---------------- Boot ---------------- */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#modal').classList.contains('open')) closeModal();
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); App.undo(); }
+});
+$('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
+load();
+save();
+render();
+</script>
+</body>
+</html>
